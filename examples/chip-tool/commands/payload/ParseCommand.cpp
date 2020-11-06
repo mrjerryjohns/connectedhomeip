@@ -29,15 +29,15 @@ using namespace ::chip;
 using namespace ::chip::DeviceController;
 
 CHIP_ERROR ParseCommand::Run(ChipDeviceController * dc, NodeId remoteId)
-{    
+{
     std::string codeString(mCode);
     SetupPayload payload;
-    
+
     CHIP_ERROR err = CHIP_NO_ERROR;
     err = Parse(codeString, payload);
 
     SuccessOrExit(err);
-    
+
     Print(payload);
 exit:
     return err;
@@ -58,11 +58,11 @@ void ParseCommand::Print(chip::SetupPayload payload){
     ChipLogProgress(SetupPayload, "SetUpPINCode: %u", payload.setUpPINCode);
     ChipLogProgress(SetupPayload, "RendezvousInformation: %u", payload.rendezvousInformation);
     ChipLogProgress(SetupPayload, "SerialNumber: %s", serialNumber.c_str());
-    
+
     ChipLogProgress(SetupPayload, "OptionalVendorData Size: %u", optionalVendorData.size());
 
     for (const OptionalQRCodeInfo & info : optionalVendorData)
-    {        
+    {
         if (info.type == optionalQRCodeInfoTypeString)
         {
             ChipLogProgress(SetupPayload, "OptionalQRCodeInfo: tag=%u,string value=%s",info.tag, info.data.c_str());
@@ -75,14 +75,14 @@ void ParseCommand::Print(chip::SetupPayload payload){
 }
 
 CHIP_ERROR ParseCommand::Parse(std::string codeString, chip::SetupPayload &payload){
-    
+
     CHIP_ERROR err = CHIP_NO_ERROR;
-    
+
     if(IsQRCode(codeString)) {
         ChipLogDetail(SetupPayload, "Parsing Base41Representation: %s", codeString.c_str());
         return QRCodeSetupPayloadParser(codeString).populatePayload(payload);
     }
-   
+
    ChipLogDetail(SetupPayload, "Parsing decimalRepresentation: %s", codeString.c_str());
    return ManualSetupPayloadParser(codeString).populatePayload(payload);
 }

@@ -39,6 +39,6 @@ int main(int argc, char * argv[])
     registerPayloadCommands(commands);
 
     registerClusters(commands);
-    
+
     return commands.Run(kLocalDeviceId, kRemoteDeviceId, argc, argv);
 }
