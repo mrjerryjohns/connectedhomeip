@@ -96,14 +96,14 @@ with the target cluster name and the target command name
 
 ### How to parse a setup code
 
-To parse a setup code, run the built executable with the `payload` cluster name and the `parse` command
+To parse a setup code, run the built executable with the `payload` cluster name
+and the `parse` command
 
     $ chip-tool payload parse code
 
 #### QR Code
 
     $ chip-tool payload parse "CH:J20800G008008000"
-
 
 #### QR Code with optional Vendor Info
 
