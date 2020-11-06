@@ -17,11 +17,10 @@
  */
 
 #include "ParseCommand.h"
-#include <setup_payload/QRCodeSetupPayloadParser.h>
-#include <setup_payload/ManualSetupPayloadParser.h>
-#include <setup_payload/SetupPayload.h>
-#include <stdio.h>
 #include <iostream>
+#include <setup_payload/ManualSetupPayloadParser.h>
+#include <setup_payload/QRCodeSetupPayloadParser.h>
+#include <setup_payload/SetupPayload.h>
 #include <stdio.h>
 #include <support/verhoeff/Verhoeff.h>
 
@@ -34,7 +33,7 @@ CHIP_ERROR ParseCommand::Run(ChipDeviceController * dc, NodeId remoteId)
     SetupPayload payload;
 
     CHIP_ERROR err = CHIP_NO_ERROR;
-    err = Parse(codeString, payload);
+    err            = Parse(codeString, payload);
 
     SuccessOrExit(err);
 
@@ -43,7 +42,8 @@ exit:
     return err;
 }
 
-void ParseCommand::Print(chip::SetupPayload payload){
+void ParseCommand::Print(chip::SetupPayload payload)
+{
     std::string serialNumber;
     std::vector<OptionalQRCodeInfo> optionalVendorData;
 
@@ -65,28 +65,31 @@ void ParseCommand::Print(chip::SetupPayload payload){
     {
         if (info.type == optionalQRCodeInfoTypeString)
         {
-            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo: tag=%u,string value=%s",info.tag, info.data.c_str());
+            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo: tag=%u,string value=%s", info.tag, info.data.c_str());
         }
         else if (info.type == optionalQRCodeInfoTypeInt32)
         {
-            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo: tag=%u,int value=%u",info.tag, info.int32);
+            ChipLogProgress(SetupPayload, "OptionalQRCodeInfo: tag=%u,int value=%u", info.tag, info.int32);
         }
     }
 }
 
-CHIP_ERROR ParseCommand::Parse(std::string codeString, chip::SetupPayload &payload){
+CHIP_ERROR ParseCommand::Parse(std::string codeString, chip::SetupPayload & payload)
+{
 
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    if(IsQRCode(codeString)) {
+    if (IsQRCode(codeString))
+    {
         ChipLogDetail(SetupPayload, "Parsing Base41Representation: %s", codeString.c_str());
         return QRCodeSetupPayloadParser(codeString).populatePayload(payload);
     }
 
-   ChipLogDetail(SetupPayload, "Parsing decimalRepresentation: %s", codeString.c_str());
-   return ManualSetupPayloadParser(codeString).populatePayload(payload);
+    ChipLogDetail(SetupPayload, "Parsing decimalRepresentation: %s", codeString.c_str());
+    return ManualSetupPayloadParser(codeString).populatePayload(payload);
 }
 
-bool ParseCommand::IsQRCode(std::string codeString){
-    return codeString.rfind("CH:")==0;
+bool ParseCommand::IsQRCode(std::string codeString)
+{
+    return codeString.rfind("CH:") == 0;
 }
