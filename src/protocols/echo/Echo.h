@@ -103,6 +103,29 @@ private:
 class DLL_EXPORT EchoServer : public ExchangeContextDelegate
 {
 public:
+    /*
+     * In this style, we have a session that 'takes over' as the delegate for the Echo EC
+     */
+    class DLL_EXPORT EchoSessionStyle1 : public ExchangeContextDelegate {
+    public:
+        void OnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, uint32_t protocolId, uint8_t msgType, System::PacketBuffer * payload) override;
+
+        void OnResponseTimeout(ExchangeContext * ec) override;
+
+        bool mIsFree;
+    };
+
+    /*
+     * In this style, we leave it to the EchoServer to still act as the main delegate, and 'route' calls to the appropriate session
+     */
+    class DLL_EXPORT EchoSessionStyle2 {
+    public:
+        void OnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, System::PacketBuffer * payload);
+        void OnResponseTimeout(ExchangeContext * ec);
+
+        bool mIsFree;
+    };
+    
     /**
      *  Initialize the EchoServer object. Within the lifetime
      *  of this instance, this method is invoked once after object
@@ -133,9 +156,18 @@ public:
      */
     void SetEchoRequestReceived(EchoFunct callback) { OnEchoRequestReceived = callback; }
 
+    EchoSessionStyle1 *AllocEchoSession1();
+    void FreeEchoSession1(EchoSessionStyle1 *session);
+
+    EchoSessionStyle2 *AllocEchoSession2();
+    void FreeEchoSession2(EchoSessionStyle2 *session);
+    
 private:
     ExchangeManager * mExchangeMgr  = nullptr;
     EchoFunct OnEchoRequestReceived = nullptr;
+
+    EchoSessionStyle1 mSession1Store[10];
+    EchoSessionStyle2 mSession2Store[10];
 
     void OnMessageReceived(ExchangeContext * ec, const PacketHeader & packetHeader, uint32_t protocolId, uint8_t msgType,
                            System::PacketBuffer * payload) override;
