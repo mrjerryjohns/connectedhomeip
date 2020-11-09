@@ -337,7 +337,7 @@ public:
 
     // CHIP_END_OF_TLV if there is no such element
     // CHIP_ERROR_WRONG_TLV_TYPE if there is such element but it's not any of the defined unsigned integer types
-    CHIP_ERROR GetEventId(chip::EventId  * const apEventId) const;
+    CHIP_ERROR GetEventId(chip::EventId * const apEventId) const;
 };
 
 /**
@@ -355,7 +355,7 @@ public:
     EventPath::Builder & NodeId(const chip::NodeId aNodeId);
     EventPath::Builder & EndpointId(const chip::EndpointId aEndpointId);
     EventPath::Builder & ClusterId(const chip::ClusterId aClusterId);
-    EventPath::Builder & EventId(const chip::EventId  aEventId);
+    EventPath::Builder & EventId(const chip::EventId aEventId);
 
     EventPath::Builder & EndOfEventPath();
 
