@@ -32,9 +32,14 @@
 #include <support/CHIPMem.h>
 #include <support/RandUtils.h>
 
+#include <SchemaTypes.h>
+#include <TestCluster-Gen.h>
 #include "LightingManager.h"
 #include "Options.h"
 #include "Server.h"
+#include "system/SystemPacketBuffer.h"
+#include <system/SystemPacketBuffer.h>
+#include <system/TLVPacketBufferBackingStore.h>
 
 #include <cassert>
 #include <iostream>
@@ -148,9 +153,42 @@ exit:
 }
 } // namespace
 
+void DumpOffsets(chip::Span<const chip::IM::FieldDescriptor> pStruct, int tabOffset)
+{
+    for (auto i = pStruct.data(); i != (pStruct.data() + pStruct.size()); i++) {
+        for (int j = 0; j < tabOffset; j++) {
+            printf("\t");
+        }
+
+        printf("[%d] Type: %d (%d)\n", i->FieldId, i->Type.Raw(), i->Offset);
+
+        if ((i->Type.Has(chip::IM::Type::TYPE_STRUCT)) || (i->Type.Has(chip::IM::Type::TYPE_ARRAY))) {
+            DumpOffsets(i->StructDef, tabOffset + 1);
+        }
+    }
+}
+
+template <typename T>
+void DumpOffsets(T &val)
+{
+    DumpOffsets({val.mDescriptor.FieldList.data(), val.mDescriptor.FieldList.size()}, 0);
+}
+
 int main(int argc, char * argv[])
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
+
+    {
+        chip::System::PacketBufferHandle bufHandle = System::PacketBufferHandle::New(1024);
+        chip::System::PacketBufferTLVWriter writer;
+
+        writer.Init(std::move(bufHandle));
+
+        chip::IM::Cluster::TestCluster::Attributes::Type t;
+        DumpOffsets(t);
+
+        chip::IM::EncodeSchemaElement(t, writer, TLV::ContextTag(0));
+    }
 
     err = chip::Platform::MemoryInit();
     SuccessOrExit(err);

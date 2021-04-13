@@ -21,6 +21,7 @@
 
 #include <cstdio>
 
+
 LightingManager LightingManager::sLight;
 
 int LightingManager::Init()
