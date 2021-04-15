@@ -41,6 +41,10 @@
 #include <system/SystemPacketBuffer.h>
 #include <system/TLVPacketBufferBackingStore.h>
 
+#if defined(PW_RPC_ENABLED)
+#include "Rpc.h"
+#endif // PW_RPC_ENABLED
+
 #include <cassert>
 #include <iostream>
 
@@ -201,6 +205,11 @@ int main(int argc, char * argv[])
 
     err = PrintQRCodeContent();
     SuccessOrExit(err);
+
+#if defined(PW_RPC_ENABLED)
+    chip::rpc::Init();
+    std::cerr << "PW_RPC initialized." << std::endl;
+#endif // defined(PW_RPC_ENABLED)
 
     chip::DeviceLayer::PlatformMgrImpl().AddEventHandler(EventHandler, 0);
 

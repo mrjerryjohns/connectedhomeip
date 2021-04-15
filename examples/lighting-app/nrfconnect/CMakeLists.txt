@@ -48,7 +48,7 @@ target_sources(app PRIVATE
                ${NRFCONNECT_COMMON}/util/LEDWidget.cpp
                ${NRFCONNECT_COMMON}/util/ThreadUtil.cpp
                ${NRFCONNECT_COMMON}/app/Service.cpp
-               ${CHIP_ROOT}/src/app/server/DataModelHandler.cpp
+               ${CHIP_ROOT}/src/app/util/DataModelHandler.cpp
                ${CHIP_ROOT}/src/app/reporting/reporting-default-configuration.cpp
                ${CHIP_ROOT}/src/app/reporting/reporting.cpp
                ${CHIP_ROOT}/src/app/util/af-event.cpp
@@ -64,6 +64,7 @@ target_sources(app PRIVATE
                ${CHIP_ROOT}/src/app/util/process-cluster-message.cpp
                ${CHIP_ROOT}/src/app/util/process-global-message.cpp
                ${CHIP_ROOT}/src/app/util/util.cpp
+               ${CHIP_ROOT}/src/app/clusters/basic/basic.cpp
                ${CHIP_ROOT}/src/app/clusters/bindings/bindings.cpp
                ${CHIP_ROOT}/src/app/clusters/on-off-server/on-off-server.cpp
                ${CHIP_ROOT}/src/app/clusters/level-control/level-control.cpp
@@ -86,9 +87,37 @@ add_subdirectory(third_party/connectedhomeip/examples/platform/nrfconnect/pw_sys
 add_subdirectory(third_party/connectedhomeip/third_party/nanopb/repo)
 add_subdirectory(third_party/connectedhomeip/third_party/pigweed/repo)
 
-pw_proto_library(pigweed_lighting_protolib
+pw_proto_library(button_service
   SOURCES
-    main/pigweed_lighting.proto
+    ${CHIP_ROOT}/examples/common/pigweed/protos/button_service.proto
+  PREFIX
+    button_service
+  STRIP_PREFIX
+    ${CHIP_ROOT}/examples/common/pigweed/protos
+  DEPS
+    pw_protobuf.common_protos
+)
+
+pw_proto_library(device_service
+  SOURCES
+    ${CHIP_ROOT}/examples/common/pigweed/protos/device_service.proto
+  INPUTS
+    ${CHIP_ROOT}/examples/common/pigweed/protos/device_service.options
+  PREFIX
+    device_service
+  STRIP_PREFIX
+    ${CHIP_ROOT}/examples/common/pigweed/protos
+  DEPS
+    pw_protobuf.common_protos
+)
+
+pw_proto_library(lighting_service
+  SOURCES
+    ${CHIP_ROOT}/examples/lighting-app/lighting-common/lighting_service/lighting_service.proto
+  STRIP_PREFIX
+    ${CHIP_ROOT}/examples/lighting-app/lighting-common/
+  DEPS
+    pw_protobuf.common_protos
 )
 
 target_sources(app PRIVATE
@@ -107,7 +136,9 @@ target_include_directories(app PRIVATE
   ../../common/pigweed/nrfconnect)
 
 target_link_libraries(app PRIVATE
-  pigweed_lighting_protolib.nanopb_rpc
+  button_service.nanopb_rpc
+  device_service.nanopb_rpc
+  lighting_service.nanopb_rpc
   pw_checksum
   pw_hdlc
   pw_log
