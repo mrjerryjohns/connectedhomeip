@@ -2,7 +2,18 @@
 
 namespace chip::IM::Cluster::TestCluster {
     namespace StructA {
-        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = Type::InitializeOffsets();
+        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+
+            uint32_t i = 0;
+
+            r[i++] = {offsetof(class Type, x), sizeof(Type::x)};
+            r[i++] = {offsetof(class Type, y), sizeof(Type::y)};
+
+            return r;
+        }
+
+        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets)
@@ -12,7 +23,19 @@ namespace chip::IM::Cluster::TestCluster {
     }
 
     namespace StructB {
-        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = Type::InitializeOffsets();
+        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+
+            uint32_t i = 0;
+
+            r[i++] = {offsetof(class Type, x), sizeof(Type::x)};
+            r[i++] = {offsetof(class Type, y), sizeof(Type::y)};
+            r[i++] = {offsetof(class Type, z), sizeof(Type::z)};
+
+            return r;
+        }
+        
+        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
@@ -24,7 +47,32 @@ namespace chip::IM::Cluster::TestCluster {
     
 
     namespace Attributes {
-        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = Type::InitializeOffsets();
+        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+
+            uint32_t i = 0;
+
+            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
+            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
+
+            if (IsImplemented(FieldC)) {
+                r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
+            }
+
+            if (IsImplemented(FieldD)) {
+                r[i++] = {offsetof(class Type, d), sizeof(Type::d)};
+            }
+
+            if (IsImplemented(FieldE)) {
+                r[i++] = {offsetof(class Type, e), sizeof(uint8_t)};
+            }
+
+            r[i++] = {offsetof(class Type, f), sizeof(Type::f)};
+
+            return r;
+        }
+        
+        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
 
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,

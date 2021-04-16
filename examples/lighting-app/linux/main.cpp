@@ -242,7 +242,7 @@ int main(int argc, char * argv[])
         chip::IM::Cluster::TestCluster::Attributes::Type t;
         DumpOffsets(t);
 
-        uint8_t buf[] = {1, 2, 3, 4, 5};
+        uint8_t buf[] = {1, 2, 3, 4, 5, 100, 100, 202, 103};
 
         t.a = 20;
         t.b = 30;

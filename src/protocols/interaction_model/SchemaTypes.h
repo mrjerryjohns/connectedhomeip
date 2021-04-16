@@ -39,6 +39,8 @@ constexpr FieldId_t FieldId(uint16_t vendorId, uint16_t scopedId) {
     return (((uint32_t)vendorId << 16) | (scopedId & 0xffff)); 
 }
 
+typedef uint32_t ClusterId_t;
+
 enum class Type: uint8_t
 {
     TYPE_UINT8 = (1 << 0),
