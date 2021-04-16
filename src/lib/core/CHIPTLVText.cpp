@@ -23,10 +23,10 @@
  *
  */
 
-#include "core/CHIPTLVTypes.h"
 #include <core/CHIPTLVDebug.hpp>
 #include <core/CHIPTLVUtilities.hpp>
 #include <support/CodeUtils.h>
+#include <core/CHIPTLVTypes.h>
 
 namespace chip {
 
@@ -55,9 +55,14 @@ void PrintTag(uint64_t tag, int tabLevel)
 
 CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
 {
-    CHIP_ERROR err;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
     PrintTag(reader.GetTag(), tabLevel);
+
+    if (tabLevel == 0) {
+        err = reader.Next();
+        SuccessOrExit(err);
+    }
 
     switch (reader.GetType()) {
         case kTLVType_Structure:
@@ -87,7 +92,7 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             err = reader.EnterContainer(containerType);
             SuccessOrExit(err);
 
-            while ((err = reader.Next()) != CHIP_NO_ERROR) {
+            while ((err = reader.Next()) == CHIP_NO_ERROR) {
                 err = Print(reader, tabLevel + 1);
                 SuccessOrExit(err);
             }
@@ -107,7 +112,7 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             err = reader.Get(v);
             SuccessOrExit(err);
 
-            printf("%s\n", (v) ? "true" : "false");
+            printf("%s,\n", (v) ? "true" : "false");
             break;
         }
 
@@ -118,7 +123,7 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             err = reader.Get(v);
             SuccessOrExit(err);
 
-            printf("%lld\n", v);
+            printf("%lld,\n", v);
             break;
         }
 
@@ -129,13 +134,13 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             err = reader.Get(v);
             SuccessOrExit(err);
 
-            printf("%llu\n", v);
+            printf("%llu,\n", v);
             break;
         }
 
         default:
         {
-            printf("?\n");
+            printf("?,\n");
             break;
         }
     }

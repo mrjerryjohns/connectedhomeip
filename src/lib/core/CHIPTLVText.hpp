@@ -24,7 +24,7 @@
  */
 
 #ifndef CHIPTLVTEXT_HPP
-#define CHIPTLVTET_HPP
+#define CHIPTLVTEXT_HPP
 
 #include <stddef.h>
 #include <stdint.h>

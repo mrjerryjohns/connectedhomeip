@@ -59,8 +59,7 @@ namespace chip::IM::Cluster::TestCluster {
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB,     {}},
             {kFieldIdC, Type::TYPE_UINT32,          kOptional | kNullable,  FieldC,     {}},
             {kFieldIdD, Type::TYPE_UINT8,           kOptional | kNullable,  FieldD,     {}},
-            {kFieldIdE, BitFlags(Type::TYPE_ARRAY, 
-                                 Type::TYPE_UINT8), kNone,                  FieldF,     {}},
+            {kFieldIdE, BitFlags(Type::TYPE_ARRAY).Set(Type::TYPE_UINT8), kNone,                  FieldF,     {}},
             {kFieldIdF, Type::TYPE_STRUCT,          kNone,                  FieldE,     {StructB::_Schema, std::size(StructB::_Schema)}},
         };
     }

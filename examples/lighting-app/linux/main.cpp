@@ -20,6 +20,7 @@
 #include <platform/PlatformManager.h>
 
 #include "af.h"
+#include "core/CHIPTLVTags.h"
 #include "gen/attribute-id.h"
 #include "gen/cluster-id.h"
 #include <app/chip-zcl-zpro-codec.h>
@@ -31,7 +32,7 @@
 #include <setup_payload/SetupPayload.h>
 #include <support/CHIPMem.h>
 #include <support/RandUtils.h>
-
+#include <core/CHIPTLVText.hpp>
 #include <SchemaTypes.h>
 #include <TestCluster-Gen.h>
 #include "LightingManager.h"
@@ -182,18 +183,6 @@ int main(int argc, char * argv[])
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    {
-        chip::System::PacketBufferHandle bufHandle = System::PacketBufferHandle::New(1024);
-        chip::System::PacketBufferTLVWriter writer;
-
-        writer.Init(std::move(bufHandle));
-
-        chip::IM::Cluster::TestCluster::Attributes::Type t;
-        DumpOffsets(t);
-
-        chip::IM::EncodeSchemaElement(t, writer, TLV::ContextTag(0));
-    }
-
     err = chip::Platform::MemoryInit();
     SuccessOrExit(err);
 
@@ -241,6 +230,39 @@ int main(int argc, char * argv[])
     }
 #endif // CHIP_ENABLE_OPENTHREAD
 
+    {
+        chip::System::PacketBufferHandle bufHandle = System::PacketBufferHandle::New(1024);
+        chip::System::TLVPacketBufferBackingStore store;
+        chip::TLV::TLVWriter writer;
+        chip::TLV::TLVReader reader;
+
+        store.Init(std::move(bufHandle));
+        writer.Init(store);
+
+        chip::IM::Cluster::TestCluster::Attributes::Type t;
+        DumpOffsets(t);
+
+        uint8_t buf[] = {1, 2, 3, 4, 5};
+
+        t.a = 20;
+        t.b = 30;
+        t.c = 200000;
+        t.d = 1;
+        t.e = Span{buf};
+        t.f.x = 11;
+        t.f.y = 12;
+
+        t.f.z.x = 22;
+        t.f.z.y = 33;
+
+        chip::IM::EncodeSchemaElement(t, writer, TLV::AnonymousTag);
+
+        writer.Finalize();
+        reader.Init(store);
+
+        chip::TLV::Utilities::Print(reader);
+    }
+    
     chip::DeviceLayer::PlatformMgr().RunEventLoop();
 
 exit:

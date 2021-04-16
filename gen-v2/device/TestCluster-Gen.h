@@ -13,16 +13,16 @@ namespace chip::IM::Cluster::TestCluster {
             public:
                 struct empty {};
 
-                void SetX(int8_t v) { x = v; }
-                void SetY(int8_t v) { y = v; }
+                void SetX(uint8_t v) { x = v; }
+                void SetY(uint8_t v) { y = v; }
 
-                int8_t x;
-                int8_t y;
+                uint8_t x;
+                uint8_t y;
                
                 static consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
                     std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
-                    int i = 0;
+                    uint32_t i = 0;
 
                     r[i++] = {offsetof(Type, x), sizeof(x)};
                     r[i++] = {offsetof(Type, y), sizeof(y)};
@@ -41,19 +41,18 @@ namespace chip::IM::Cluster::TestCluster {
         class Type {
             public:
                 struct empty {};
-                typedef typename std::conditional<IsImplemented(FieldZ), StructA::Type, empty>::type FieldZType;
 
-                void SetX(int8_t v) { x = v; }
-                void SetY(int8_t v) { y = v; }
+                void SetX(uint8_t v) { x = v; }
+                void SetY(uint8_t v) { y = v; }
 
-                int8_t x;
-                int8_t y;
-                FieldZType z;
+                uint8_t x;
+                uint8_t y;
+                StructA::Type z;
 
                 consteval static std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
                     std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
-                    int i = 0;
+                    uint32_t i = 0;
 
                     r[i++] = {offsetof(Type, x), sizeof(x)};
                     r[i++] = {offsetof(Type, y), sizeof(y)};
@@ -75,26 +74,25 @@ namespace chip::IM::Cluster::TestCluster {
                 struct empty {};
 
                 typedef typename std::conditional<IsImplemented(FieldC), uint32_t, empty>::type FieldCType;
-                typedef typename std::conditional<IsImplemented(FieldD), uint32_t, empty>::type FieldDType;
-                typedef typename std::conditional<IsImplemented(FieldE), StructA::Type, empty>::type FieldEType;
+                typedef typename std::conditional<IsImplemented(FieldD), uint8_t, empty>::type FieldDType;
 
-                void SetA(int8_t v) { a = v; }
+                void SetA(uint8_t v) { a = v; }
                 void SetC(FieldCType v) { c = v; }
 
-                int8_t a;
-                int8_t b;
+                uint8_t a;
+                uint8_t b;
 
                 FieldCType c;
                 FieldDType d;
 
-                chip::Span<uint8_t> f;
-
-                [[no_unique_address]] FieldEType e;
+                chip::Span<uint8_t> e;
+                
+                StructB::Type f;
 
                 consteval static std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
                     std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
-                    int i = 0;
+                    uint32_t i = 0;
 
                     r[i++] = {offsetof(Type, a), sizeof(a)};
                     r[i++] = {offsetof(Type, b), sizeof(b)};
@@ -108,10 +106,10 @@ namespace chip::IM::Cluster::TestCluster {
                     }
 
                     if (IsImplemented(FieldE)) {
-                        r[i++] = {offsetof(Type, e), sizeof(e)};
+                        r[i++] = {offsetof(Type, e), sizeof(uint8_t)};
                     }
 
-                    r[i++] = {offsetof(Type, f), sizeof(uint8_t)};
+                    r[i++] = {offsetof(Type, f), sizeof(f)};
 
                     return r;
                 }

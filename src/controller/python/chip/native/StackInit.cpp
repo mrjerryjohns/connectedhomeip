@@ -26,7 +26,6 @@
 namespace {
 
 pthread_t sPlatformMainThread;
-uint32_t sBluetoothAdapterId = 0;
 
 void * PlatformMainLoop(void *)
 {

@@ -40,7 +40,7 @@ CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
     CHIP_ERROR err;
     TLV::TLVType outerContainerType;
 
-    if (field == InvalidFieldId() || !inArray) {
+    if (field == InvalidFieldId() && !inArray) {
         err = writer.StartContainer(tag, TLV::kTLVType_Structure, outerContainerType);
         SuccessOrExit(err);
     }
@@ -49,17 +49,7 @@ CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
         if (field == InvalidFieldId() || schemaIter->FieldId == field) {
             uint64_t fieldTag = inArray ? TLV::AnonymousTag : TLV::ContextTag((uint8_t)schemaIter->FieldId);
 
-            if (schemaIter->Type.Has(Type::TYPE_UINT8)) {
-                uint8_t *v = (uint8_t *)((uintptr_t)(buf) + schemaIter->Offset);
-                err = writer.Put(fieldTag, *v);
-                SuccessOrExit(err);
-            }
-            else if (schemaIter->Type.Has(Type::TYPE_UINT32)) {
-                uint32_t *v = (uint32_t *)((uintptr_t)(buf) + schemaIter->Offset);
-                err = writer.Put(fieldTag, *v);
-                SuccessOrExit(err);
-            }
-            else if (schemaIter->Type.Has(Type::TYPE_STRUCT)) {
+            if (schemaIter->Type.Has(Type::TYPE_STRUCT)) {
                 err = EncodeSchemaElement(schemaIter->StructDef, (void *)((uintptr_t)(buf) + schemaIter->Offset), 
                                           fieldTag, writer, InvalidFieldId(), false);
                 SuccessOrExit(err);
@@ -76,15 +66,28 @@ CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
                 err = writer.StartContainer(TLV::ContextTag((uint8_t)(schemaIter->FieldId)), TLV::kTLVType_Array, outerContainerType2);
                 SuccessOrExit(err);
 
-                for (const uint8_t *ptr = p.data(); ptr != (p.data() + p.size() * schemaIter->TypeSize); ptr += schemaIter->TypeSize) {
+                for (const uint8_t *ptr = p.data(); ptr < (p.data() + p.size() * schemaIter->TypeSize); ptr += schemaIter->TypeSize) {
                     err = EncodeSchemaElement(tmpDescriptorList, (void *)ptr, 0, writer, InvalidFieldId(), true);
                     SuccessOrExit(err);
                 }
+
+                err = writer.EndContainer(outerContainerType2);
+                SuccessOrExit(err);
+            }
+            else if (schemaIter->Type.Has(Type::TYPE_UINT8)) {
+                uint8_t *v = (uint8_t *)((uintptr_t)(buf) + schemaIter->Offset);
+                err = writer.Put(fieldTag, *v);
+                SuccessOrExit(err);
+            }
+            else if (schemaIter->Type.Has(Type::TYPE_UINT32)) {
+                uint32_t *v = (uint32_t *)((uintptr_t)(buf) + schemaIter->Offset);
+                err = writer.Put(fieldTag, *v);
+                SuccessOrExit(err);
             }
         }
     }
 
-    if (field == InvalidFieldId() || !inArray) {
+    if (field == InvalidFieldId() && !inArray) {
         err = writer.EndContainer(outerContainerType);
         SuccessOrExit(err);
     }

@@ -94,7 +94,13 @@ CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
 template <typename GenType_t>
 CHIP_ERROR EncodeSchemaElement(GenType_t &v, TLV::TLVWriter &writer, uint64_t tag, FieldId_t field = InvalidFieldId())
 {
-    EncodeSchemaElement(v.mDescriptor.FieldList, &v, tag, writer, field);    
+    CHIP_ERROR err = EncodeSchemaElement({v.mDescriptor.FieldList.data(), v.mDescriptor.FieldList.size()}, &v, tag, writer, field);    
+    SuccessOrExit(err);
+
+    err = writer.Finalize(); 
+
+exit:
+    return err;
 }
 
 #if 0
@@ -115,7 +121,7 @@ consteval bool IsImplemented(uint64_t FieldId)
     }
 #endif
 
-    return false;
+    return true;
 }
 
 template <size_t N>
