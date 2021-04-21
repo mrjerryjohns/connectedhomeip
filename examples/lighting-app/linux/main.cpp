@@ -41,6 +41,7 @@
 #include "system/SystemPacketBuffer.h"
 #include <system/SystemPacketBuffer.h>
 #include <system/TLVPacketBufferBackingStore.h>
+#include <functional>
 
 #if defined(PW_RPC_ENABLED)
 #include "Rpc.h"
@@ -158,7 +159,7 @@ exit:
 }
 } // namespace
 
-void DumpOffsets(chip::Span<const chip::IM::FieldDescriptor> pStruct, int tabOffset)
+void DumpOffsets(chip::Span<const chip::app::FieldDescriptor> pStruct, int tabOffset)
 {
     for (auto i = pStruct.data(); i != (pStruct.data() + pStruct.size()); i++) {
         for (int j = 0; j < tabOffset; j++) {
@@ -167,7 +168,7 @@ void DumpOffsets(chip::Span<const chip::IM::FieldDescriptor> pStruct, int tabOff
 
         printf("[%d] Type: %d (%d)\n", i->FieldId, i->Type.Raw(), i->Offset);
 
-        if ((i->Type.Has(chip::IM::Type::TYPE_STRUCT)) || (i->Type.Has(chip::IM::Type::TYPE_ARRAY))) {
+        if ((i->Type.Has(chip::app::Type::TYPE_STRUCT)) || (i->Type.Has(chip::app::Type::TYPE_ARRAY))) {
             DumpOffsets(i->StructDef, tabOffset + 1);
         }
     }
@@ -239,7 +240,7 @@ int main(int argc, char * argv[])
         store.Init(std::move(bufHandle));
         writer.Init(store);
 
-        chip::IM::Cluster::TestCluster::Attributes::Type t;
+        chip::app::Cluster::TestCluster::Attributes::Type t;
         DumpOffsets(t);
 
         uint8_t buf[] = {1, 2, 3, 4, 5, 100, 100, 202, 103};
@@ -255,7 +256,7 @@ int main(int argc, char * argv[])
         t.f.z.x = 22;
         t.f.z.y = 33;
 
-        chip::IM::EncodeSchemaElement(t, writer, TLV::AnonymousTag);
+        chip::app::EncodeSchemaElement(t, writer, TLV::AnonymousTag);
 
         writer.Finalize();
         reader.Init(store);

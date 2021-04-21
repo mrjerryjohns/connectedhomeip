@@ -30,7 +30,7 @@
 #include <support/BitFlags.h>
 
 namespace chip {
-namespace IM {
+namespace app {
 
 typedef uint32_t FieldId_t;
 
@@ -87,11 +87,11 @@ struct StructDescriptor {
     std::array<FieldDescriptor, N> FieldList;
 };
 
-CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, FieldId_t field = InvalidFieldId(), bool inArray = false);
+struct ClusterDescriptor {
+    ClusterId_t ClusterId;
+};
 
-#if 0
 CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, FieldId_t field = InvalidFieldId(), bool inArray = false);
-#endif
 
 template <typename GenType_t>
 CHIP_ERROR EncodeSchemaElement(GenType_t &v, TLV::TLVWriter &writer, uint64_t tag, FieldId_t field = InvalidFieldId())
@@ -104,14 +104,6 @@ CHIP_ERROR EncodeSchemaElement(GenType_t &v, TLV::TLVWriter &writer, uint64_t ta
 exit:
     return err;
 }
-
-#if 0
-template <typename GenType_t>
-CHIP_ERROR DecodeSchemaElement(GenType_t &v, TLV::TLVWriter &writer, FieldId_t field = InvalidFieldId())
-{
-    SerializeSchemaElement(v.mDescriptor.FieldList, writer, field);    
-}
-#endif
 
 consteval bool IsImplemented(uint64_t FieldId)
 {

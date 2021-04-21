@@ -4,7 +4,7 @@
 #include <type_traits>
 #include "TestCluster.h"
 
-namespace chip::IM::Cluster::TestCluster {
+namespace chip::app::Cluster::TestCluster {
     constexpr ClusterId_t kClusterId = 0x000000001;
 
     namespace StructA {

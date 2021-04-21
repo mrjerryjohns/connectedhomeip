@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <SchemaTypes.h>
 
-namespace chip::IM::Cluster::TestCluster {
+namespace chip::app::Cluster::TestCluster {
     namespace StructA {
         enum FieldId {
             kFieldIdJ = 0,

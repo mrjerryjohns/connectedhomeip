@@ -43,7 +43,6 @@ executable("chip-lighting-app") {
     "${chip_root}/examples/lighting-app/lighting-common",
     "${chip_root}/src/lib",
     "${chip_root}/gen-v2/device",
-    "${chip_root}/src/protocols/interaction_model",
   ]
 
   include_dirs = [ "include" ]

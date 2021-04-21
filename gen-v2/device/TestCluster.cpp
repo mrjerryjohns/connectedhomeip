@@ -1,6 +1,6 @@
 #include "TestCluster-Gen.h"
 
-namespace chip::IM::Cluster::TestCluster {
+namespace chip::app::Cluster::TestCluster {
     namespace StructA {
         consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};

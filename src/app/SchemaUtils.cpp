@@ -33,7 +33,7 @@ struct Test {
 static_assert(sizeof(chip::Span<uint8_t>) == sizeof(chip::Span<Test>), "Chip::Span cannot be type erasured");
 
 namespace chip {
-namespace IM {
+namespace app {
 
 CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, FieldId_t field, bool inArray)
 {

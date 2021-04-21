@@ -27,6 +27,7 @@
 #include "Command.h"
 #include "CommandHandler.h"
 #include "CommandSender.h"
+#include "InvokeInteraction.h"
 #include <cinttypes>
 
 namespace chip {
@@ -125,6 +126,28 @@ CHIP_ERROR InteractionModelEngine::NewReadClient(ReadClient ** const apReadClien
     return err;
 }
 
+CHIP_ERROR InteractionModelEngine::RegisterClient(ClusterClient *apClusterClient)
+{
+    ClusterClient **client = mClusterClients.CreateObject();
+    if (client == nullptr) {
+        return CHIP_ERROR_NO_MEMORY;
+    }
+
+    *client = apClusterClient;
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR InteractionModelEngine::RegisterServer(ClusterServer *apClusterServer)
+{
+    ClusterServer **server = mClusterServers.CreateObject();
+    if (server == nullptr) {
+        return CHIP_ERROR_NO_MEMORY;
+    }
+
+    *server = apClusterServer;
+    return CHIP_NO_ERROR;
+}
+
 void InteractionModelEngine::OnUnknownMsgType(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
                                               const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload)
 {
@@ -153,26 +176,28 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
                                                     System::PacketBufferHandle aPayload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-
-    for (auto & commandHandler : mCommandHandlerObjs)
-    {
-        if (commandHandler.IsFree())
-        {
-            err = commandHandler.Init(mpExchangeMgr, mpDelegate);
-            SuccessOrExit(err);
-            commandHandler.OnMessageReceived(apExchangeContext, aPacketHeader, aPayloadHeader, std::move(aPayload));
-            apExchangeContext = nullptr;
-            break;
+    InvokeInteraction *interaction = nullptr;
+    
+    if (!mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
+        if (apInteraction->GetExchangeContext() == apExchangeContext) {
+            interaction = apInteraction;
+            return true;        
         }
+
+        return false;
+    })) {
+        interaction = mInvokeInteractions.CreateObject();
+
+        err = interaction->Init(apExchangeContext);
+        SuccessOrExit(err);
     }
+
+    VerifyOrExit(interaction != nullptr, err = CHIP_ERROR_NO_MEMORY);
+   
+    //interaction->HandleMessage(std::move(aPayload));
 
 exit:
     ChipLogFunctError(err);
-
-    if (nullptr != apExchangeContext)
-    {
-        apExchangeContext->Abort();
-    }
 }
 
 void InteractionModelEngine::OnReadRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
@@ -209,7 +234,6 @@ void InteractionModelEngine::OnMessageReceived(Messaging::ExchangeContext * apEx
 {
     if (aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::InvokeCommandRequest))
     {
-
         OnInvokeCommandRequest(apExchangeContext, aPacketHeader, aPayloadHeader, std::move(aPayload));
     }
     else if (aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::ReadRequest))

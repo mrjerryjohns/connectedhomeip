@@ -95,6 +95,12 @@ static_library("app") {
     "decoder.cpp",
     "encoder.cpp",
     "reporting/Engine.cpp",
+
+    "InvokeInteraction.cpp",
+    "InvokeInteraction.h",
+    "SchemaUtils.cpp",
+    "SchemaTypes.h",
+    "Cluster.h"
   ]
 
   public_deps = [

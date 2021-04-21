@@ -32,10 +32,13 @@
 #include <messaging/Flags.h>
 #include <protocols/Protocols.h>
 #include <protocols/interaction_model/Constants.h>
+#include "InvokeInteraction.h"
+#include "Cluster.h"
 #include <support/CodeUtils.h>
 #include <support/DLLUtil.h>
 #include <support/logging/CHIPLogging.h>
 #include <system/SystemPacketBuffer.h>
+#include <support/Pool.h>
 
 #include <app/Command.h>
 #include <app/CommandHandler.h>
@@ -50,6 +53,11 @@
 #define CHIP_MAX_NUM_READ_CLIENT 1
 #define CHIP_MAX_NUM_READ_HANDLER 1
 #define CHIP_MAX_REPORTS_IN_FLIGHT 1
+
+
+#define CHIP_CONFIG_MAX_CLUSTER_CLIENTS 10
+#define CHIP_CONFIG_MAX_CLUSTER_SERVERS 10
+#define CHIP_MAX_NUM_INVOKE_INTERACTIONS 1
 
 namespace chip {
 namespace app {
@@ -125,6 +133,10 @@ public:
      */
     uint16_t GetReadClientArrayIndex(const ReadClient * const apReadClient) const;
 
+
+    CHIP_ERROR RegisterClient(ClusterClient *apClient);
+    CHIP_ERROR RegisterServer(ClusterServer *apServer);
+
     reporting::Engine & GetReportingEngine() { return mReportingEngine; }
 
 private:
@@ -151,6 +163,15 @@ private:
     ReadClient mReadClients[CHIP_MAX_NUM_READ_CLIENT];
     ReadHandler mReadHandlers[CHIP_MAX_NUM_READ_HANDLER];
     reporting::Engine mReportingEngine;
+    friend class InvokeInteraction;
+
+
+    BitMapObjectPool<ClusterClient*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterClients;
+    BitMapObjectPool<ClusterServer*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterServers;
+    BitMapObjectPool<InvokeInteraction, CHIP_MAX_NUM_INVOKE_INTERACTIONS> mInvokeInteractions;
+
+    auto GetClusterClientSet() -> decltype(mClusterClients) & { return mClusterClients; }
+    auto GetClusterServerSet() -> decltype(mClusterServers) & { return mClusterServers; }
 };
 
 void DispatchSingleClusterCommand(chip::ClusterId aClusterId, chip::CommandId aCommandId, chip::EndpointId aEndPointId,

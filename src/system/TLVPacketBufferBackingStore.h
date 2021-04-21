@@ -61,6 +61,7 @@ public:
         mCurrentBuffer     = mHeadBuffer.Retain();
         mUseChainedBuffers = useChainedBuffers;
     }
+
     void Adopt(chip::System::PacketBufferHandle && buffer) { Init(std::move(buffer), mUseChainedBuffers); }
 
     /**
@@ -73,6 +74,8 @@ public:
         mCurrentBuffer = nullptr;
         return std::move(mHeadBuffer);
     }
+
+    chip::System::PacketBufferHandle& GetCurrentBuffer() { return mCurrentBuffer; }
 
     // TLVBackingStore overrides:
     CHIP_ERROR OnInit(chip::TLV::TLVReader & reader, const uint8_t *& bufStart, uint32_t & bufLen) override;
@@ -125,6 +128,7 @@ public:
         mBackingStore.Init(std::move(buffer), useChainedBuffers);
         chip::TLV::TLVWriter::Init(mBackingStore);
     }
+
     /**
      * Finish the writing of a TLV encoding and release ownership of the underlying PacketBuffer.
      *
@@ -145,6 +149,9 @@ public:
         *outBuffer     = mBackingStore.Release();
         return err;
     }
+
+    bool HasBuffer() { return mBackingStore.GetCurrentBuffer().IsNull(); }
+    
     /**
      * Free the underlying PacketBuffer.
      *
