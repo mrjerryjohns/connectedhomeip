@@ -50,9 +50,8 @@ class InvokeInteraction
 public:
     enum State
     {
-        kStateUnInitialized = 0, //< The invoke command message has not been initialized
-        kStateReady,             //< The invoke command message has been initialized and is ready
-        kStateAwaitingResponse, 
+        kStateReady = 0,           //< The invoke command message has been initialized and is ready
+        kStateAwaitingResponse = 1
     };
 
     /**
@@ -89,7 +88,7 @@ public:
     };
 
     CHIP_ERROR Init(Messaging::ExchangeContext *aExchangeCtx = NULL);
-    CHIP_ERROR AddCommand(CommandParams &aParams, std::function<CHIP_ERROR(chip::TLV::TLVWriter &)>(f));
+    CHIP_ERROR AddCommand(CommandParams &aParams, std::function<CHIP_ERROR(chip::TLV::TLVWriter &, uint64_t tag)>(f));
     CHIP_ERROR AddStatus(CommandParams &aParams, uint16_t aCode);
     void IncrementHoldoffRef();
     CHIP_ERROR DecrementHoldoffRef();
@@ -103,6 +102,9 @@ private:
     CHIP_ERROR HandleMessage(System::PacketBufferHandle payload);
     Messaging::ExchangeContext *GetExchangeContext() { return mpExchangeCtx; }
     friend class InteractionModelEngine;
+
+    CHIP_ERROR FinalizeMessage(System::PacketBufferHandle &aBuf);
+    CHIP_ERROR SendMessage(System::PacketBufferHandle aBuf);
   
 private: 
     enum Mode
@@ -112,7 +114,8 @@ private:
         kModeServerResponder = 2
     };
 
-    int mHoldffCount = 0;
+    friend class TestInvokeInteraction;
+    int mHoldOffCount = 0;
     Mode mMode = kModeUnset;
     State mState;
     chip::System::PacketBufferTLVWriter mWriter;

@@ -150,7 +150,7 @@ public:
         return err;
     }
 
-    bool HasBuffer() { return mBackingStore.GetCurrentBuffer().IsNull(); }
+    bool HasBuffer() { return !mBackingStore.GetCurrentBuffer().IsNull(); }
     
     /**
      * Free the underlying PacketBuffer.

@@ -24,6 +24,7 @@
 
 #include "InvokeInteraction.h"
 #include "InteractionModelEngine.h"
+#include "system/SystemPacketBuffer.h"
 #include "system/TLVPacketBufferBackingStore.h"
 #include <core/CHIPTLVDebug.hpp>
 
@@ -59,6 +60,8 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
     if (mMode == kModeUnset) {
         mMode = kModeServerResponder;
     }
+
+    assert((mMode == kModeClientInitiator) && (mState == kStateReady));
 
     reader.Init(std::move(payload));
 
@@ -128,6 +131,8 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
             });
         }
 
+        mState = kStateReady;
+
         DecrementHoldoffRef();
     }
 
@@ -137,14 +142,86 @@ exit:
 
 void InvokeInteraction::IncrementHoldoffRef()
 {
-    assert(mHoldffCount >= 0);
-    mHoldffCount++;
+    assert(mHoldOffCount >= 0);
+    mHoldOffCount++;
 }
 
-CHIP_ERROR InvokeInteraction::AddCommand(CommandParams &aParams, std::function<CHIP_ERROR(chip::TLV::TLVWriter &)>(f))
+CHIP_ERROR InvokeInteraction::DecrementHoldoffRef()
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    // VerifyOrExit(mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
+
+    assert(mHoldOffCount > 0);
+    mHoldOffCount--;
+
+    VerifyOrExit(mWriter.HasBuffer(), );
+    
+    if (mHoldOffCount == 0) {
+        System::PacketBufferHandle buf;
+
+        err = FinalizeMessage(buf);
+        SuccessOrExit(err);
+
+        err = SendMessage(std::move(buf));
+        SuccessOrExit(err);
+    }
+
+exit:
+    return err;
+}
+
+// Only get here if we have a valid buffer
+CHIP_ERROR InvokeInteraction::FinalizeMessage(System::PacketBufferHandle &aBuf)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    //VerifyOrExit(mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mState != kStateAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
+
+    {
+        System::PacketBufferHandle txBuf;
+        CommandList::Builder commandListBuilder = mInvokeCommandBuilder.GetCommandListBuilder().EndOfCommandList();
+        SuccessOrExit(commandListBuilder.GetError());
+
+        mInvokeCommandBuilder.EndOfInvokeCommand();
+
+        err = mInvokeCommandBuilder.GetError();
+        SuccessOrExit(err);
+
+        err = mWriter.Finalize(&txBuf);
+        SuccessOrExit(err);
+
+        VerifyOrExit(txBuf->EnsureReservedSize(System::PacketBuffer::kDefaultHeaderReserve),
+                     err = CHIP_ERROR_BUFFER_TOO_SMALL);
+
+        aBuf = std::move(txBuf);
+    }
+
+exit:
+    return err;
+}
+
+CHIP_ERROR InvokeInteraction::SendMessage(System::PacketBufferHandle aBuf)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    VerifyOrExit(!aBuf.IsNull(), err = CHIP_ERROR_INVALID_ARGUMENT);
+
+    err = mpExchangeCtx->SendMessage(Protocols::InteractionModel::MsgType::InvokeCommandRequest, 
+                                     std::move(aBuf), Messaging::SendFlags(Messaging::SendMessageFlags::kExpectResponse));
+    SuccessOrExit(err);
+
+exit:
+    return err;
+}
+
+CHIP_ERROR InvokeInteraction::AddCommand(CommandParams &aParams, std::function<CHIP_ERROR(chip::TLV::TLVWriter &, uint64_t tag)>(f))
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::System::PacketBufferHandle txBuf;
+
+    IncrementHoldoffRef();
 
     //
     // We only allocate the actual TX buffer once we have a command to add, which is now!
@@ -177,15 +254,24 @@ CHIP_ERROR InvokeInteraction::AddCommand(CommandParams &aParams, std::function<C
         }
 
         commandPath.ClusterId(aParams.ClusterId).CommandId(aParams.CommandId).EndOfCommandPath();
-        SuccessOrExit(commandPath.GetError());
+        SuccessOrExit((err = commandPath.GetError()));
 
         // 
         // Invoke the passed in closure that will actually write out the command payload if any
         //
-        err = f(*mInvokeCommandBuilder.GetWriter());
+        err = f(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
         SuccessOrExit(err);
+
+        commandDataElement.EndOfCommandDataElement();
+        SuccessOrExit((err = commandDataElement.GetError()));
     }
-    
+
+    //
+    // This will auto-send the message if the hold off count dips back to 0
+    //
+    err = DecrementHoldoffRef();
+    SuccessOrExit(err);
+
 exit:
     return err;
 }

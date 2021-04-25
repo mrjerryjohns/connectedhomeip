@@ -100,6 +100,7 @@ static_library("app") {
     "InvokeInteraction.h",
     "SchemaUtils.cpp",
     "SchemaTypes.h",
+    "Cluster.cpp",
     "Cluster.h"
   ]
 

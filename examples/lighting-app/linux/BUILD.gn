@@ -39,6 +39,7 @@ executable("chip-lighting-app") {
   public_configs = [
     "${chip_root}/gen-v2/device:includes"
   ]
+
   deps = [
     "${chip_root}/examples/lighting-app/lighting-common",
     "${chip_root}/src/lib",

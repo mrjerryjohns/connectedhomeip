@@ -126,6 +126,32 @@ CHIP_ERROR InteractionModelEngine::NewReadClient(ReadClient ** const apReadClien
     return err;
 }
 
+InvokeInteraction* InteractionModelEngine::NewInvokeInteraction(ClusterClient *aClient)
+{
+    InvokeInteraction *pInteraction = nullptr;
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    if (aClient) {
+        mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
+            if (apInteraction->GetExchangeContext()->GetSecureSessionHandle().GetAdminId() == aClient->GetRemoteAdmin() &&
+                apInteraction->GetExchangeContext()->GetSecureSessionHandle().GetPeerNodeId() == aClient->GetRemoteNodeId()) {
+                pInteraction = apInteraction;
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    if (!pInteraction) {
+        pInteraction = mInvokeInteractions.CreateObject();
+        VerifyOrExit(pInteraction, err = CHIP_ERROR_NO_MEMORY);
+    }
+
+exit:
+    return pInteraction;
+}
+
 CHIP_ERROR InteractionModelEngine::RegisterClient(ClusterClient *apClusterClient)
 {
     ClusterClient **client = mClusterClients.CreateObject();

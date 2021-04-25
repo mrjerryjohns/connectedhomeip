@@ -134,6 +134,9 @@ public:
     uint16_t GetReadClientArrayIndex(const ReadClient * const apReadClient) const;
 
 
+    InvokeInteraction* NewInvokeInteraction();
+
+
     CHIP_ERROR RegisterClient(ClusterClient *apClient);
     CHIP_ERROR RegisterServer(ClusterServer *apServer);
 
@@ -165,10 +168,12 @@ private:
     reporting::Engine mReportingEngine;
     friend class InvokeInteraction;
 
-
     BitMapObjectPool<ClusterClient*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterClients;
     BitMapObjectPool<ClusterServer*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterServers;
     BitMapObjectPool<InvokeInteraction, CHIP_MAX_NUM_INVOKE_INTERACTIONS> mInvokeInteractions;
+
+    InvokeInteraction *NewInvokeInteraction(ClusterClient *aClient);
+    friend class ClusterClient;
 
     auto GetClusterClientSet() -> decltype(mClusterClients) & { return mClusterClients; }
     auto GetClusterServerSet() -> decltype(mClusterServers) & { return mClusterServers; }

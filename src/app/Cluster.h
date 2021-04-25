@@ -50,31 +50,42 @@ namespace app {
 class ClusterServer : public InvokeInteraction::CommandHandler
 {
 public:
-    ClusterServer(ClusterId cluster);
+    ClusterServer(ClusterDescriptor *apClusterDescriptor);
     virtual ~ClusterServer() = default;
 
     void SetEndpoint(chip::EndpointId aEndpointId) { mEndpoint = aEndpointId; }
 
-    ClusterId GetClusterId() { return mCluster; }
+    ClusterId_t GetClusterId() { return mClusterDescriptor->ClusterId; }
     chip::EndpointId GetEndpoint() { return mEndpoint; }
 
 private:
-    ClusterId mCluster;
+    ClusterDescriptor *mClusterDescriptor;
     chip::EndpointId mEndpoint;
 };
 
 class ClusterClient : public InvokeInteraction::CommandHandler
 {
 public:
-    ClusterClient(ClusterId cluster);
-    InvokeInteraction *StartInvoke();
+    ClusterClient(ClusterDescriptor *apClusterDescriptor);
+    InvokeInteraction* StartInvoke();
     virtual ~ClusterClient() = default;
+
+    InvokeInteraction::CommandParams BuildParams() {
+        InvokeInteraction::CommandParams params(mRemoteEndpoint, 0, (ClusterId)mClusterDescriptor->ClusterId, 
+                                                0, InvokeInteraction::CommandParams::TargetType::kTargetEndpoint);
+        return params;
+    }
 
     void SetRemoteTarget(NodeId aRemoteNode, Transport::AdminId aRemoteAdmin) { mRemoteNode = aRemoteNode; mRemoteAdmin = aRemoteAdmin; }
     void SetRemoteEndpoint(chip::EndpointId aEndpointId) { mRemoteEndpoint = aEndpointId; }
 
+    ClusterId_t GetClusterId() {return mClusterDescriptor->ClusterId;}
+    chip::EndpointId GetEndpointId() {return mRemoteEndpoint;}
+    NodeId GetRemoteNodeId() {return mRemoteNode;}
+    Transport::AdminId GetRemoteAdmin() { return mRemoteAdmin; }
+
 private:
-    ClusterId mCluster;
+    ClusterDescriptor *mClusterDescriptor;
     chip::EndpointId mRemoteEndpoint;
     NodeId mRemoteNode;
     Transport::AdminId mRemoteAdmin;
