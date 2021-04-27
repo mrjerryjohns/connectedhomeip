@@ -49,6 +49,81 @@ namespace chip::app::Cluster::TestCluster {
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
     }
     
+    namespace StructC {
+        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+
+            uint32_t i = 0;
+
+            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
+            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
+            r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
+            r[i++] = {offsetof(class Type, d), sizeof(uint8_t)};
+            r[i++] = {offsetof(class Type, e), sizeof(StructA::Type)};
+
+            return r;
+        }
+        
+        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
+        
+        const StructDescriptor<NumImplementedFields> Descriptor = {
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
+                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
+        };
+
+        const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
+    }
+
+    namespace CommandA {
+        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+
+            uint32_t i = 0;
+
+            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
+            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
+            r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
+            r[i++] = {offsetof(class Type, d), sizeof(uint8_t)};
+
+            return r;
+        }
+        
+        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
+        
+        const StructDescriptor<NumImplementedFields> Descriptor = {
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
+        };
+
+        const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
+    }
+   
+    namespace CommandB {
+        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+
+            uint32_t i = 0;
+
+            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
+            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
+            r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
+            r[i++] = {offsetof(class Type, d), sizeof(uint8_t)};
+            r[i++] = {offsetof(class Type, e), sizeof(StructA::Type)};
+
+            return r;
+        }
+        
+        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
+        
+        const StructDescriptor<NumImplementedFields> Descriptor = {
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
+                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
+        };
+
+        const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
+    }
 
     namespace Attributes {
         consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {

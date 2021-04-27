@@ -1,9 +1,15 @@
 #pragma once
 
 #include <type_traits>
+#include <array>
 #include <SchemaTypes.h>
 
 namespace chip::app::Cluster::TestCluster {
+    enum CommandId {
+        kCommandAId = 1,
+        kCommandBId = 2
+    };
+
     namespace StructA {
         enum FieldId {
             kFieldIdJ = 0,
@@ -34,6 +40,80 @@ namespace chip::app::Cluster::TestCluster {
             {kFieldIdX, Type::TYPE_UINT8, kNone,                  FieldX, {}},
             {kFieldIdY, Type::TYPE_UINT8, kNullable,              FieldY, {}},
             {kFieldIdZ, Type::TYPE_STRUCT, 0,                     FieldZ, {StructA::_Schema, std::size(StructA::_Schema)}},
+        };
+    }
+
+    namespace StructC {
+        enum FieldId {
+            kFieldIdA = 0,
+            kFieldIdB = 1,
+            kFieldIdC = 2,
+            kFieldIdD = 3,
+            kFieldIdE = 4,
+        };
+
+        constexpr uint64_t FieldA = (0x00000001ULL << 32) | 0x0d;
+        constexpr uint64_t FieldB = (0x00000001ULL << 32) | 0x0e;
+        constexpr uint64_t FieldC = (0x00000001ULL << 32) | 0x0f;
+        constexpr uint64_t FieldD = (0x00000001ULL << 32) | 0x10;
+        constexpr uint64_t FieldE = (0x00000001ULL << 32) | 0x11;
+
+        constexpr _FieldDescriptor _Schema[] = {
+            {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
+            {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
+            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
+            {kFieldIdD, BitFlags(Type::TYPE_ARRAY)
+                        .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
+            {kFieldIdE, BitFlags(Type::TYPE_ARRAY)
+                        .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, std::size(StructA::_Schema)}},
+        };
+    }
+
+    namespace CommandA {
+        enum FieldId {
+            kFieldIdA = 0,
+            kFieldIdB = 1,
+            kFieldIdC = 2,
+            kFieldIdD = 3,
+        };
+
+        constexpr uint64_t FieldA = (0x00000001ULL << 32) | 0x12;
+        constexpr uint64_t FieldB = (0x00000001ULL << 32) | 0x13;
+        constexpr uint64_t FieldC = (0x00000001ULL << 32) | 0x14;
+        constexpr uint64_t FieldD = (0x00000001ULL << 32) | 0x15;
+
+        constexpr _FieldDescriptor _Schema[] = {
+            {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
+            {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
+            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
+            {kFieldIdD, BitFlags(Type::TYPE_ARRAY)
+                        .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
+        };
+    }
+
+    namespace CommandB {
+        enum FieldId {
+            kFieldIdA = 0,
+            kFieldIdB = 1,
+            kFieldIdC = 2,
+            kFieldIdD = 3,
+            kFieldIdE = 4,
+        };
+
+        constexpr uint64_t FieldA = (0x00000001ULL << 32) | 0x16;
+        constexpr uint64_t FieldB = (0x00000001ULL << 32) | 0x17;
+        constexpr uint64_t FieldC = (0x00000001ULL << 32) | 0x18;
+        constexpr uint64_t FieldD = (0x00000001ULL << 32) | 0x19;
+        constexpr uint64_t FieldE = (0x00000001ULL << 32) | 0x1a;
+
+        constexpr _FieldDescriptor _Schema[] = {
+            {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
+            {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
+            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
+            {kFieldIdD, BitFlags(Type::TYPE_ARRAY)
+                        .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
+            {kFieldIdE, BitFlags(Type::TYPE_ARRAY)
+                        .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, std::size(StructA::_Schema)}},
         };
     }
 

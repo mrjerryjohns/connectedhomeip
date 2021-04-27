@@ -1777,6 +1777,10 @@ typedef CHIP_CONFIG_ERROR_TYPE CHIP_ERROR;
  */
 #define CHIP_ERROR_HSM                      					_CHIP_ERROR(189)
 
+
+#define CHIP_ERROR_DESERIALIZE_NULL_BUF                         _CHIP_ERROR(190)
+
+
 /**
  *  @}
  */

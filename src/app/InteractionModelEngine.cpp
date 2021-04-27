@@ -144,8 +144,17 @@ InvokeInteraction* InteractionModelEngine::NewInvokeInteraction(ClusterClient *a
     }
 
     if (!pInteraction) {
+        Messaging::ExchangeContext *ec;
+
         pInteraction = mInvokeInteractions.CreateObject();
         VerifyOrExit(pInteraction, err = CHIP_ERROR_NO_MEMORY);
+
+        // Allocate an exchange
+        ec = mpExchangeMgr->NewContext({aClient->GetRemoteNodeId(), 0, aClient->GetRemoteAdmin()}, this);
+        VerifyOrExit(ec != nullptr, err = CHIP_ERROR_NO_MEMORY);
+
+        err = pInteraction->Init(ec);
+        SuccessOrExit(err);
     }
 
 exit:
@@ -213,14 +222,14 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
         return false;
     })) {
         interaction = mInvokeInteractions.CreateObject();
+        assert(interaction != nullptr);
 
         err = interaction->Init(apExchangeContext);
         SuccessOrExit(err);
     }
 
-    VerifyOrExit(interaction != nullptr, err = CHIP_ERROR_NO_MEMORY);
-   
-    //interaction->HandleMessage(std::move(aPayload));
+    err = interaction->HandleMessage(std::move(aPayload));
+    SuccessOrExit(err);
 
 exit:
     ChipLogFunctError(err);

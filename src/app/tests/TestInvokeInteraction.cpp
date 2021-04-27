@@ -22,6 +22,7 @@
  *
  */
 
+#include "TestCluster.h"
 #include <app/InteractionModelEngine.h>
 #include <core/CHIPCore.h>
 #include <core/CHIPTLV.h>
@@ -93,15 +94,23 @@ TestClientCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
 
 CHIP_ERROR TestClientCluster::SendCommand(InvokeInteraction **apInvoke)
 {
-    chip::app::Cluster::TestCluster::StructA::Type t;
+    chip::app::Cluster::TestCluster::CommandA::Type c;
     InvokeInteraction::CommandParams p = BuildParams();
     InvokeInteraction *invoke;
     CHIP_ERROR err = CHIP_NO_ERROR;
+    uint8_t d[5];
 
-    t.x = 20;
-    t.y = 30;
+    c.a = 10;
+    c.b = 20;
+    c.c.x = 13;
+    c.c.y = 99;
+    c.d = chip::Span{d};
 
-    p.CommandId = 0x01;
+    for (size_t i = 0; i < std::size(d); i++) {
+        d[i] = (uint8_t)i;
+    }
+    
+    p.CommandId = chip::app::Cluster::TestCluster::kCommandAId;
 
     invoke = StartInvoke();
     SuccessOrExit(err);
@@ -109,14 +118,13 @@ CHIP_ERROR TestClientCluster::SendCommand(InvokeInteraction **apInvoke)
     invoke->IncrementHoldoffRef();
     *apInvoke = invoke;
 
-    err = invoke->AddCommand(p, [&t](chip::TLV::TLVWriter &writer, uint64_t tag) {
-        return EncodeSchemaElement(t, writer, tag);
+    err = invoke->AddCommand(p, [&c](chip::TLV::TLVWriter &writer, uint64_t tag) {
+        return EncodeSchemaElement(c, writer, tag);
     });
 
 exit:
     return err;
 }
-
 
 class TestInvokeInteraction
 {
@@ -168,23 +176,7 @@ public:
 
     CHIP_ERROR err;
 };
-#endif
 
-void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext)
-{
-    InvokeInteraction *invoke;
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    System::PacketBufferHandle buf;
-
-    TestClientCluster client;
-
-    err = client.SendCommand(&invoke);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-
-    err = invoke->FinalizeMessage(buf);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-
-#if 0
     {
         uint8_t buf1[sizeof(Encoding1_DataMacro)];
         memcpy(buf1, Encoding1_DataMacro, sizeof(Encoding1_DataMacro));
@@ -204,14 +196,44 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
        reader.Add(reader1.Init(data, len));
        
     } 
+
 #endif
+
+void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext)
+{
+    InvokeInteraction *invoke;
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    System::PacketBufferHandle buf;
+    Messaging::ExchangeContext *pRxEc;
+    PacketHeader packetHdr;
+    PayloadHeader payloadHdr;
+
+    TestClientCluster client;
+    TestServerCluster server;
+
+    pRxEc = chip::gExchangeManager.NewContext({0, 0, 0}, NULL);
+    NL_TEST_ASSERT(apSuite, pRxEc != nullptr);
+
+    err = chip::app::InteractionModelEngine::GetInstance()->RegisterServer(&server);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+
+    err = chip::app::InteractionModelEngine::GetInstance()->RegisterClient(&client);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    
+    err = client.SendCommand(&invoke);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+
+    err = invoke->FinalizeMessage(buf);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
     
     {
         chip::System::PacketBufferTLVReader reader;
         reader.Init(std::move(buf));
-
         chip::TLV::Utilities::Print(reader);
+        buf = reader.GetBackingStore().Release();
     }
+
+    chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(pRxEc, packetHdr, payloadHdr, std::move(buf));
 }
 
 } // namespace app

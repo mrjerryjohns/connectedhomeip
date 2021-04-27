@@ -57,7 +57,7 @@
 
 #define CHIP_CONFIG_MAX_CLUSTER_CLIENTS 10
 #define CHIP_CONFIG_MAX_CLUSTER_SERVERS 10
-#define CHIP_MAX_NUM_INVOKE_INTERACTIONS 1
+#define CHIP_MAX_NUM_INVOKE_INTERACTIONS 4
 
 namespace chip {
 namespace app {
@@ -174,6 +174,7 @@ private:
 
     InvokeInteraction *NewInvokeInteraction(ClusterClient *aClient);
     friend class ClusterClient;
+    friend class TestInvokeInteraction;
 
     auto GetClusterClientSet() -> decltype(mClusterClients) & { return mClusterClients; }
     auto GetClusterServerSet() -> decltype(mClusterServers) & { return mClusterServers; }

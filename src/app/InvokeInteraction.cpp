@@ -61,7 +61,9 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
         mMode = kModeServerResponder;
     }
 
-    assert((mMode == kModeClientInitiator) && (mState == kStateReady));
+    if (mMode == kModeClientInitiator) {
+        assert(mState == kStateReady);
+    }
 
     reader.Init(std::move(payload));
 
@@ -119,21 +121,27 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
                     err = (*s)->HandleCommand(params, *this, HasData ? &dataReader : NULL);
                     SuccessOrExit(err);
 
-                    return false;
+                    return true;
                 }
 
             exit:
                 if (err != CHIP_NO_ERROR) {
-                    return false;
+                    return true;
                 }
 
-                return true;
+                return false;
             });
         }
+
+        SuccessOrExit(err);
 
         mState = kStateReady;
 
         DecrementHoldoffRef();
+    }
+
+    if (err == CHIP_END_OF_TLV) {
+        err = CHIP_NO_ERROR;
     }
 
 exit:
@@ -150,7 +158,7 @@ CHIP_ERROR InvokeInteraction::DecrementHoldoffRef()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    // VerifyOrExit(mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
 
     assert(mHoldOffCount > 0);
     mHoldOffCount--;

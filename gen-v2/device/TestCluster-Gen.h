@@ -47,6 +47,62 @@ namespace chip::app::Cluster::TestCluster {
         };
     }
 
+    namespace StructC {
+        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
+        extern const StructDescriptor<NumImplementedFields> Descriptor;
+        
+        class Type {
+            public:
+                struct empty {};
+
+            public:
+                uint8_t a;
+                uint8_t b;
+                StructA::Type c;
+                chip::Span<uint8_t> d;
+                chip::Span<StructA::Type> e;
+
+                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+        };
+    }
+
+    namespace CommandA {
+        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
+        extern const StructDescriptor<NumImplementedFields> Descriptor;
+        
+        class Type {
+            public:
+                struct empty {};
+
+            public:
+                uint8_t a;
+                uint8_t b;
+                StructA::Type c;
+                chip::Span<uint8_t> d;
+
+                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+        };
+    }
+    
+    namespace CommandB {
+        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
+        extern const StructDescriptor<NumImplementedFields> Descriptor;
+        
+        class Type {
+            public:
+                struct empty {};
+
+            public:
+                uint8_t a;
+                uint8_t b;
+                StructA::Type c;
+                chip::Span<uint8_t> d;
+                chip::Span<StructA::Type> e;
+
+                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+        };
+    }
+
     namespace Attributes {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;

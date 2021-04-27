@@ -91,12 +91,13 @@ struct ClusterDescriptor {
     ClusterId_t ClusterId;
 };
 
-CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, FieldId_t field = InvalidFieldId(), bool inArray = false);
+CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, bool inArray = false);
+CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, TLV::TLVReader &reader, bool inArray = false);
 
 template <typename GenType_t>
-CHIP_ERROR EncodeSchemaElement(GenType_t &v, TLV::TLVWriter &writer, uint64_t tag, FieldId_t field = InvalidFieldId())
+CHIP_ERROR EncodeSchemaElement(GenType_t &v, TLV::TLVWriter &writer, uint64_t tag)
 {
-    CHIP_ERROR err = EncodeSchemaElement({v.mDescriptor.FieldList.data(), v.mDescriptor.FieldList.size()}, &v, tag, writer, field);    
+    CHIP_ERROR err = EncodeSchemaElement({v.mDescriptor.FieldList.data(), v.mDescriptor.FieldList.size()}, &v, tag, writer);    
     SuccessOrExit(err);
 
     err = writer.Finalize(); 
@@ -104,6 +105,17 @@ CHIP_ERROR EncodeSchemaElement(GenType_t &v, TLV::TLVWriter &writer, uint64_t ta
 exit:
     return err;
 }
+
+template <typename GenType_t>
+CHIP_ERROR DecodeSchemaElement(GenType_t &v, TLV::TLVReader &reader)
+{
+    CHIP_ERROR err = DecodeSchemaElement({v.mDescriptor.FieldList.data(), v.mDescriptor.FieldList.size()}, &v, reader);    
+    SuccessOrExit(err);
+
+exit:
+    return err;
+}
+
 
 consteval bool IsImplemented(uint64_t FieldId)
 {

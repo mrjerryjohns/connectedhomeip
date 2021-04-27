@@ -107,6 +107,8 @@ public:
         chip::TLV::TLVReader::Init(mBackingStore);
     }
 
+    TLVPacketBufferBackingStore& GetBackingStore() {return mBackingStore;}
+
 private:
     TLVPacketBufferBackingStore mBackingStore;
 };

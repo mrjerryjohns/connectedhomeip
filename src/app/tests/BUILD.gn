@@ -24,6 +24,7 @@ chip_test_suite("tests") {
   test_sources = [
     "TestCommandInteraction.cpp",
     "TestInvokeInteraction.cpp",
+    "TestSchemaUtils.cpp",
     "TestMessageDef.cpp",
     "TestReadInteraction.cpp",
     "TestReportingEngine.cpp",
