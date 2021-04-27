@@ -67,6 +67,8 @@ public:
      */
     CommandDataElement::Builder & CreateCommandDataElementBuilder();
 
+    CommandDataElement::Builder & GetCommandDataElementBuidler() { return mCommandDataElementBuilder; }
+
     /**
      *  @brief Mark the end of this CommandList
      *

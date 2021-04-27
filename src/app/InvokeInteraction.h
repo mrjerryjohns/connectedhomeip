@@ -88,7 +88,34 @@ public:
     };
 
     CHIP_ERROR Init(Messaging::ExchangeContext *aExchangeCtx = NULL);
-    CHIP_ERROR AddCommand(CommandParams &aParams, std::function<CHIP_ERROR(chip::TLV::TLVWriter &, uint64_t tag)>(f));
+    CHIP_ERROR StartCommandHeader(CommandParams &aParams);
+
+    template <typename F>
+    CHIP_ERROR AddCommand(CommandParams &aParams, F f) {
+        CHIP_ERROR err = CHIP_NO_ERROR;
+
+        err = StartCommandHeader(aParams);
+        SuccessOrExit(err);
+
+        // 
+        // Invoke the passed in closure that will actually write out the command payload if any
+        //
+        err = f(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
+        SuccessOrExit(err);
+
+        mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
+        SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
+
+        //
+        // This will auto-send the message if the hold off count dips back to 0
+        //
+        err = DecrementHoldoffRef();
+        SuccessOrExit(err);
+
+exit:
+        return err;
+    }
+
     CHIP_ERROR AddStatus(CommandParams &aParams, uint16_t aCode);
     Messaging::ExchangeContext *GetExchange() { return mpExchangeCtx; }
 

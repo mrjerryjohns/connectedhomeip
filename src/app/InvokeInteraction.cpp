@@ -49,6 +49,55 @@ exit:
     return err;
 }
 
+CHIP_ERROR InvokeInteraction::StartCommandHeader(CommandParams &aParams)
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    chip::System::PacketBufferHandle txBuf;
+
+    if (mMode == kModeUnset) {
+        mMode = kModeClientInitiator;
+    }
+
+    IncrementHoldoffRef();
+
+    //
+    // We only allocate the actual TX buffer once we have a command to add, which is now!
+    //
+    if (!mWriter.HasBuffer()) {
+        CommandList::Builder commandListBuilder;
+
+        txBuf = System::PacketBufferHandle::New(1024);
+        VerifyOrExit(!txBuf.IsNull(), err = CHIP_ERROR_NO_MEMORY);
+
+        mWriter.Init(std::move(txBuf));
+
+        err = mInvokeCommandBuilder.Init(&mWriter);
+        SuccessOrExit(err);
+
+        commandListBuilder = mInvokeCommandBuilder.CreateCommandListBuilder();
+        SuccessOrExit(commandListBuilder.GetError());
+    }
+
+    {
+        CommandDataElement::Builder commandDataElement = mInvokeCommandBuilder.GetCommandListBuilder().CreateCommandDataElementBuilder();
+        CommandPath::Builder commandPath = commandDataElement.CreateCommandPathBuilder();
+
+        if (aParams.Flags.Has(CommandParams::TargetType::kTargetEndpoint))
+        {
+            commandPath.EndpointId(aParams.EndpointId);
+        }
+        else {
+            commandPath.GroupId(aParams.GroupId);
+        }
+
+        commandPath.ClusterId(aParams.ClusterId).CommandId(aParams.CommandId).EndOfCommandPath();
+        SuccessOrExit((err = commandPath.GetError()));
+    }
+
+exit:
+    return err;
+}
+
 CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -235,70 +284,6 @@ CHIP_ERROR InvokeInteraction::SendMessage(System::PacketBufferHandle aBuf)
 
     err = mpExchangeCtx->SendMessage(Protocols::InteractionModel::MsgType::InvokeCommandRequest, 
                                      std::move(aBuf), Messaging::SendFlags(Messaging::SendMessageFlags::kExpectResponse));
-    SuccessOrExit(err);
-
-exit:
-    return err;
-}
-
-CHIP_ERROR InvokeInteraction::AddCommand(CommandParams &aParams, std::function<CHIP_ERROR(chip::TLV::TLVWriter &, uint64_t tag)>(f))
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::System::PacketBufferHandle txBuf;
-
-    if (mMode == kModeUnset) {
-        mMode = kModeClientInitiator;
-    }
-
-    IncrementHoldoffRef();
-
-    //
-    // We only allocate the actual TX buffer once we have a command to add, which is now!
-    //
-    if (!mWriter.HasBuffer()) {
-        CommandList::Builder commandListBuilder;
-
-        txBuf = System::PacketBufferHandle::New(chip::app::kMaxSecureSduLengthBytes);
-        VerifyOrExit(!txBuf.IsNull(), err = CHIP_ERROR_NO_MEMORY);
-
-        mWriter.Init(std::move(txBuf));
-
-        err = mInvokeCommandBuilder.Init(&mWriter);
-        SuccessOrExit(err);
-
-        commandListBuilder = mInvokeCommandBuilder.CreateCommandListBuilder();
-        SuccessOrExit(commandListBuilder.GetError());
-    }
-
-    {
-        CommandDataElement::Builder commandDataElement = mInvokeCommandBuilder.GetCommandListBuilder().CreateCommandDataElementBuilder();
-        CommandPath::Builder commandPath = commandDataElement.CreateCommandPathBuilder();
-
-        if (aParams.Flags.Has(CommandParams::TargetType::kTargetEndpoint))
-        {
-            commandPath.EndpointId(aParams.EndpointId);
-        }
-        else {
-            commandPath.GroupId(aParams.GroupId);
-        }
-
-        commandPath.ClusterId(aParams.ClusterId).CommandId(aParams.CommandId).EndOfCommandPath();
-        SuccessOrExit((err = commandPath.GetError()));
-
-        // 
-        // Invoke the passed in closure that will actually write out the command payload if any
-        //
-        err = f(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
-        SuccessOrExit(err);
-
-        commandDataElement.EndOfCommandDataElement();
-        SuccessOrExit((err = commandDataElement.GetError()));
-    }
-
-    //
-    // This will auto-send the message if the hold off count dips back to 0
-    //
-    err = DecrementHoldoffRef();
     SuccessOrExit(err);
 
 exit:

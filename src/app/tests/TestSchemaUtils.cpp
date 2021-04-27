@@ -180,7 +180,7 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecList(nlTestSuite * apSuite, void *
     for (size_t i = 0; i < std::size(d); i++) {
         d[i] = (uint8_t)i;
     }
-    
+
     sc.a = 20;
     sc.b = 30;
     sc.c.x = 99;
