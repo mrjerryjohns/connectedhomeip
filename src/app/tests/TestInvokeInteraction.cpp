@@ -55,6 +55,10 @@ static Transport::AdminId gAdminId = 0;
 
 namespace app {
 
+nlTestSuite *gpSuite = nullptr;
+InvokeInteraction *gServerInvoke = nullptr;
+Messaging::ExchangeContext *gClientEc = nullptr;
+
 class TestServerCluster : public ClusterServer
 {
 public:
@@ -70,6 +74,69 @@ TestServerCluster::TestServerCluster()
 CHIP_ERROR 
 TestServerCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
 {
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    chip::app::Cluster::TestCluster::CommandA::Type req;
+    uint8_t d[5];
+
+    req.d = chip::Span{d};
+
+    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandAId) {
+        printf("Received CommandA\n");
+
+        // 
+        // To prevent the stack from actually sending this message
+        //
+        invokeInteraction.IncrementHoldoffRef();
+
+        gServerInvoke = &invokeInteraction;
+
+        NL_TEST_ASSERT(gpSuite, payload != nullptr); 
+
+        err = DecodeSchemaElement(req, *payload);
+        NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
+
+        NL_TEST_ASSERT(gpSuite, req.a == 10);
+        NL_TEST_ASSERT(gpSuite, req.b == 20);
+        NL_TEST_ASSERT(gpSuite, req.c.x == 13);
+        NL_TEST_ASSERT(gpSuite, req.c.y == 99);
+
+        for (size_t i = 0; i < std::size(d); i++) {
+            NL_TEST_ASSERT(gpSuite, d[i] == i);
+        }
+
+        //
+        // Send response synchronously
+        //
+        
+        {
+            chip::app::Cluster::TestCluster::CommandB::Type resp;
+            chip::app::Cluster::TestCluster::StructA::Type e[5];
+
+            resp.a = 21;
+            resp.b = 49;
+            resp.c.x = 19;
+            resp.c.y = 233;
+            resp.d = chip::Span{d};
+            resp.e = chip::Span{e};
+    
+            for (size_t i = 0; i < std::size(d); i++) {
+                d[i] = (uint8_t)(255 - i);
+            }
+
+            for (size_t i = 0; i < std::size(e); i++) {
+                e[i].x = (uint8_t)(255 - i);
+                e[i].y = (uint8_t)(255 - i);
+            }
+
+            commandParams.CommandId = chip::app::Cluster::TestCluster::kCommandBId;
+            err = invokeInteraction.AddCommand(commandParams, [&](chip::TLV::TLVWriter &writer, uint64_t tag) {
+                return EncodeSchemaElement(resp, writer, tag);
+            });
+
+            NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
+        }
+    }
+
     return CHIP_NO_ERROR;
 }
 
@@ -89,6 +156,42 @@ TestClientCluster::TestClientCluster()
 CHIP_ERROR
 TestClientCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
 {
+    CHIP_ERROR err = CHIP_NO_ERROR;
+    chip::app::Cluster::TestCluster::CommandB::Type resp;
+    uint8_t d[5];
+    chip::app::Cluster::TestCluster::StructA::Type e[5];
+
+    resp.d = chip::Span{d};
+    resp.e = chip::Span{e};
+
+    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandBId) {
+        printf("Received CommandB\n");
+
+        // 
+        // To prevent the stack from actually sending this message
+        //
+        invokeInteraction.IncrementHoldoffRef();
+
+        NL_TEST_ASSERT(gpSuite, payload != nullptr); 
+
+        err = DecodeSchemaElement(resp, *payload);
+        NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
+
+        NL_TEST_ASSERT(gpSuite, resp.a == 21);
+        NL_TEST_ASSERT(gpSuite, resp.b == 49);
+        NL_TEST_ASSERT(gpSuite, resp.c.x == 19);
+        NL_TEST_ASSERT(gpSuite, resp.c.y == 233);
+
+        for (size_t i = 0; i < std::size(d); i++) {
+            NL_TEST_ASSERT(gpSuite, d[i] == (uint8_t)(255 - i));
+        }
+
+        for (size_t i = 0; i < std::size(e); i++) {
+            NL_TEST_ASSERT(gpSuite, e[i].x == (uint8_t)(255 - i));
+            NL_TEST_ASSERT(gpSuite, e[i].y == (uint8_t)(255 - i));
+        }
+    }
+
     return CHIP_NO_ERROR;
 }
 
@@ -115,6 +218,8 @@ CHIP_ERROR TestClientCluster::SendCommand(InvokeInteraction **apInvoke)
     invoke = StartInvoke();
     SuccessOrExit(err);
 
+    gClientEc = invoke->GetExchange();
+
     invoke->IncrementHoldoffRef();
     *apInvoke = invoke;
 
@@ -133,71 +238,6 @@ public:
 };
 
 using namespace chip::TLV;
-
-static const uint8_t Encoding1_DataMacro [] =
-{
-    CHIP_TLV_STRUCTURE(CHIP_TLV_TAG_ANONYMOUS),
-        CHIP_TLV_ARRAY(CHIP_TLV_TAG_CONTEXT_SPECIFIC(0)),
-            CHIP_TLV_STRUCTURE(CHIP_TLV_TAG_ANONYMOUS),
-                CHIP_TLV_PATH(CHIP_TLV_TAG_CONTEXT_SPECIFIC(0)),
-                    CHIP_TLV_UINT8(CHIP_TLV_TAG_CONTEXT_SPECIFIC(0), 176),
-                    CHIP_TLV_UINT16(CHIP_TLV_TAG_CONTEXT_SPECIFIC(2), 1),
-                    CHIP_TLV_UINT8(CHIP_TLV_TAG_CONTEXT_SPECIFIC(3), 1),
-                CHIP_TLV_END_OF_CONTAINER,
-                CHIP_TLV_STRUCTURE(CHIP_TLV_TAG_CONTEXT_SPECIFIC(1)),
-                    CHIP_TLV_UINT8(CHIP_TLV_TAG_CONTEXT_SPECIFIC(0), 20),
-                    CHIP_TLV_UINT8(CHIP_TLV_TAG_CONTEXT_SPECIFIC(1), 30),
-                CHIP_TLV_END_OF_CONTAINER,
-            CHIP_TLV_END_OF_CONTAINER,
-        CHIP_TLV_END_OF_CONTAINER,
-    CHIP_TLV_END_OF_CONTAINER,
-};
-
-#if 0
-#define FWD(xs) ::std::forward<decltype(xs)>(xs)
-
-class ErrorManagedReader {
-public:
-    template <class... Ts, class... TArgs>
-    void forwarder(CHIP_ERROR(TLVReader::*fptr)(Ts...), TArgs&&... xs)
-    {
-        (reader.*fptr)(FWD(xs)...);
-    }
-
-    ErrorManagedReader& Add(CHIP_ERROR status) {
-        err = status;
-        return (*this);
-    }
-
-    ErrorManagedReader& Add(void) {
-        return (*this);
-    }
-    
-
-    CHIP_ERROR err;
-};
-
-    {
-        uint8_t buf1[sizeof(Encoding1_DataMacro)];
-        memcpy(buf1, Encoding1_DataMacro, sizeof(Encoding1_DataMacro));
-
-        TLVReader reader;
-        reader.Init(buf1, sizeof(buf1));
-        chip::TLV::Utilities::Print(reader);
-    }
-  
-    {
-       ErrorManagedReader reader;
-       TLVReader reader1;
-       const uint8_t *data;
-       uint32_t len;
-       bool v;
-        
-       reader.Add(reader1.Init(data, len));
-       
-    } 
-
-#endif
 
 void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext)
 {
@@ -233,7 +273,24 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
         buf = reader.GetBackingStore().Release();
     }
 
+    gServerInvoke = nullptr;
+
     chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(pRxEc, packetHdr, payloadHdr, std::move(buf));
+    NL_TEST_ASSERT(apSuite, gServerInvoke != nullptr);
+
+    err = gServerInvoke->FinalizeMessage(buf);
+    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+
+    {
+        chip::System::PacketBufferTLVReader reader;
+        reader.Init(std::move(buf));
+        chip::TLV::Utilities::Print(reader);
+        buf = reader.GetBackingStore().Release();
+    }
+
+    NL_TEST_ASSERT(apSuite, gClientEc != nullptr);
+    printf("gClientEc = %lx\n", (uintptr_t)gClientEc);
+    chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(gClientEc, packetHdr, payloadHdr, std::move(buf));
 }
 
 } // namespace app
@@ -249,6 +306,8 @@ void InitializeChip(nlTestSuite * apSuite)
     chip::Transport::AdminPairingInfo * adminInfo = admins.AssignAdminId(chip::gAdminId, chip::kTestDeviceNodeId);
 
     NL_TEST_ASSERT(apSuite, adminInfo != nullptr);
+
+    chip::app::gpSuite = apSuite;
 
     err = chip::Platform::MemoryInit();
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);

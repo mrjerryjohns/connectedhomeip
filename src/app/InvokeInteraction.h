@@ -90,11 +90,12 @@ public:
     CHIP_ERROR Init(Messaging::ExchangeContext *aExchangeCtx = NULL);
     CHIP_ERROR AddCommand(CommandParams &aParams, std::function<CHIP_ERROR(chip::TLV::TLVWriter &, uint64_t tag)>(f));
     CHIP_ERROR AddStatus(CommandParams &aParams, uint16_t aCode);
+    Messaging::ExchangeContext *GetExchange() { return mpExchangeCtx; }
+
     void IncrementHoldoffRef();
     CHIP_ERROR DecrementHoldoffRef();
     void Abort();
     
-
 private:
     //
     // Only invoked by InteractionModelEngine

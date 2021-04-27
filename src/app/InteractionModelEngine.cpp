@@ -213,13 +213,16 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
     CHIP_ERROR err = CHIP_NO_ERROR;
     InvokeInteraction *interaction = nullptr;
     
-    if (!mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
+    if (mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
+        printf("Found one - %lx (%lx)\n", (uintptr_t)apInteraction->GetExchangeContext(), (uintptr_t)apExchangeContext);
+
         if (apInteraction->GetExchangeContext() == apExchangeContext) {
+            printf("Done\n");
             interaction = apInteraction;
-            return true;        
+            return false;        
         }
 
-        return false;
+        return true;
     })) {
         interaction = mInvokeInteractions.CreateObject();
         assert(interaction != nullptr);

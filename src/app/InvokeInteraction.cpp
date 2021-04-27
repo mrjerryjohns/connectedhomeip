@@ -132,6 +132,23 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
                 return false;
             });
         }
+        else {
+            InteractionModelEngine::GetInstance()->GetClusterClientSet().ForEachActiveObject([&](ClusterClient **c) {
+                if ((*c)->GetClusterId() == params.ClusterId && (*c)->GetEndpointId() == params.EndpointId) {
+                    err = (*c)->HandleCommand(params, *this, HasData ? &dataReader : NULL);
+                    SuccessOrExit(err);
+
+                    return true;
+                }
+
+            exit:
+                if (err != CHIP_NO_ERROR) {
+                    return true;
+                }
+
+                return false;
+            });
+        }
 
         SuccessOrExit(err);
 
@@ -228,6 +245,10 @@ CHIP_ERROR InvokeInteraction::AddCommand(CommandParams &aParams, std::function<C
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::System::PacketBufferHandle txBuf;
+
+    if (mMode == kModeUnset) {
+        mMode = kModeClientInitiator;
+    }
 
     IncrementHoldoffRef();
 
