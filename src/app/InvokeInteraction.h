@@ -88,7 +88,6 @@ public:
     };
 
     CHIP_ERROR Init(Messaging::ExchangeContext *aExchangeCtx = NULL);
-    CHIP_ERROR StartCommandHeader(CommandParams &aParams);
 
     template <typename F>
     CHIP_ERROR AddCommand(CommandParams &aParams, F f) {
@@ -116,7 +115,6 @@ exit:
         return err;
     }
 
-    CHIP_ERROR AddStatus(CommandParams &aParams, uint16_t aCode);
     Messaging::ExchangeContext *GetExchange() { return mpExchangeCtx; }
 
     void IncrementHoldoffRef();
@@ -124,6 +122,8 @@ exit:
     void Abort();
     
 private:
+    CHIP_ERROR StartCommandHeader(CommandParams &aParams);
+    
     //
     // Only invoked by InteractionModelEngine
     //
