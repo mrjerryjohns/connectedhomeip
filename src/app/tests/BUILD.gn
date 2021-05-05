@@ -22,12 +22,18 @@ chip_test_suite("tests") {
   output_name = "libAppTests"
 
   test_sources = [
+    "TestAttributePathParams.cpp",
+    "TestClusterInfo.cpp",
     "TestCommandInteraction.cpp",
-    "TestInvokeInteraction.cpp",
-    "TestSchemaUtils.cpp",
+    "TestCommandPathParams.cpp",
+    "TestEventLogging.cpp",
+    "TestEventPathParams.cpp",
+    "TestInteractionModelEngine.cpp",
     "TestMessageDef.cpp",
     "TestReadInteraction.cpp",
     "TestReportingEngine.cpp",
+    "TestInvokeInteraction.cpp",
+    "TestSchemaUtils.cpp",
   ]
 
   cflags = [ "-Wconversion" ]

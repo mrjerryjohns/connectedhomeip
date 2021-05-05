@@ -40,6 +40,7 @@
 #include <system/SystemPacketBuffer.h>
 #include <support/Pool.h>
 
+#include <app/ClusterInfo.h>
 #include <app/Command.h>
 #include <app/CommandHandler.h>
 #include <app/CommandSender.h>
@@ -47,6 +48,7 @@
 #include <app/ReadClient.h>
 #include <app/ReadHandler.h>
 #include <app/reporting/Engine.h>
+#include <app/util/basic-types.h>
 
 #define CHIP_MAX_NUM_COMMAND_HANDLER 1
 #define CHIP_MAX_NUM_COMMAND_SENDER 1
@@ -54,7 +56,7 @@
 #define CHIP_MAX_NUM_READ_HANDLER 1
 #define CHIP_MAX_REPORTS_IN_FLIGHT 1
 
-
+#define IM_SERVER_MAX_NUM_PATH_GROUPS 8
 #define CHIP_CONFIG_MAX_CLUSTER_CLIENTS 10
 #define CHIP_CONFIG_MAX_CLUSTER_SERVERS 10
 #define CHIP_MAX_NUM_INVOKE_INTERACTIONS 4
@@ -64,7 +66,7 @@ namespace app {
 
 constexpr size_t kMaxSecureSduLengthBytes = 1024;
 constexpr uint32_t kImMessageTimeoutMsec  = 3000;
-
+constexpr FieldId kRootFieldId            = 0;
 /**
  * @class InteractionModelEngine
  *
@@ -142,6 +144,9 @@ public:
 
     reporting::Engine & GetReportingEngine() { return mReportingEngine; }
 
+    void ReleaseClusterInfoList(ClusterInfo *& aClusterInfo);
+    CHIP_ERROR PushFront(ClusterInfo *& aClusterInfo, AttributePathParams & aAttributePathParams);
+
 private:
     friend class reporting::Engine;
     void OnUnknownMsgType(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
@@ -178,10 +183,14 @@ private:
 
     auto GetClusterClientSet() -> decltype(mClusterClients) & { return mClusterClients; }
     auto GetClusterServerSet() -> decltype(mClusterServers) & { return mClusterServers; }
+	
+	ClusterInfo mClusterInfoPool[IM_SERVER_MAX_NUM_PATH_GROUPS];
+	ClusterInfo * mpNextAvailableClusterInfo = nullptr;
 };
 
 void DispatchSingleClusterCommand(chip::ClusterId aClusterId, chip::CommandId aCommandId, chip::EndpointId aEndPointId,
                                   chip::TLV::TLVReader & aReader, Command * apCommandObj);
-
+CHIP_ERROR ReadSingleClusterData(AttributePathParams & aAttributePathParams, TLV::TLVWriter & aWriter);
+CHIP_ERROR WriteSingleClusterData(AttributePathParams & aAttributePathParams, TLV::TLVReader & aReader);
 } // namespace app
 } // namespace chip
