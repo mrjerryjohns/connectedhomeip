@@ -6,7 +6,7 @@ namespace chip::app::Cluster::TestCluster {
     };
 
     namespace StructA {
-        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+        constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
             uint32_t i = 0;
@@ -27,7 +27,7 @@ namespace chip::app::Cluster::TestCluster {
     }
 
     namespace StructB {
-        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+        constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
             uint32_t i = 0;
@@ -50,7 +50,7 @@ namespace chip::app::Cluster::TestCluster {
     }
     
     namespace StructC {
-        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+        constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
             uint32_t i = 0;
@@ -76,7 +76,7 @@ namespace chip::app::Cluster::TestCluster {
     }
 
     namespace CommandA {
-        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+        constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
             uint32_t i = 0;
@@ -100,7 +100,7 @@ namespace chip::app::Cluster::TestCluster {
     }
    
     namespace CommandB {
-        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+        constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
             uint32_t i = 0;
@@ -126,7 +126,7 @@ namespace chip::app::Cluster::TestCluster {
     }
 
     namespace Attributes {
-        consteval std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
+        constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};
 
             uint32_t i = 0;

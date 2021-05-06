@@ -28,6 +28,7 @@
 #include <support/CodeUtils.h>
 #include <core/CHIPConfig.h>
 #include <support/BitFlags.h>
+#include <array>
 
 namespace chip {
 namespace app {
@@ -57,7 +58,7 @@ enum QualityMasks {
 
 struct FieldDescriptor {
     FieldId_t FieldId;
-    BitFlags<Type> Type;
+    BitFlags<Type> FieldType;
     uint32_t Qualities;
     uint32_t Offset;
     uint32_t TypeSize;
@@ -71,7 +72,7 @@ struct TypeOffsetInfo {
 
 struct _FieldDescriptor {
     FieldId_t FieldId;
-    BitFlags<Type> Type;
+    BitFlags<Type> FieldType;
     uint32_t Qualities;
     uint64_t FieldGenTag;
     chip::Span<const _FieldDescriptor> FieldList;
@@ -117,7 +118,7 @@ exit:
 }
 
 
-consteval bool IsImplemented(uint64_t FieldId)
+constexpr bool IsImplemented(uint64_t FieldId)
 {
 #ifdef ImplementedFields
     for (size_t i = 0; i < ImplementedFields.size(); i++) {
@@ -131,7 +132,7 @@ consteval bool IsImplemented(uint64_t FieldId)
 }
 
 template <size_t N>
-consteval int GetNumImplementedFields(const _FieldDescriptor (&structDescriptor)[N])
+constexpr int GetNumImplementedFields(const _FieldDescriptor (&structDescriptor)[N])
 {
     int count = 0;
 
@@ -148,7 +149,7 @@ consteval int GetNumImplementedFields(const _FieldDescriptor (&structDescriptor)
 }
 
 template <size_t N, size_t M, class ...Args>
-consteval std::array<FieldDescriptor, N> PopulateFieldDescriptors(const _FieldDescriptor (&schema)[M], 
+constexpr std::array<FieldDescriptor, N> PopulateFieldDescriptors(const _FieldDescriptor (&schema)[M], 
                                                                   std::array<TypeOffsetInfo,N> offsets, const Args& ...args) {
     int index = 0;
     int structIndex = 0;
@@ -162,10 +163,10 @@ consteval std::array<FieldDescriptor, N> PopulateFieldDescriptors(const _FieldDe
             r[index].Offset = offsets[index].Offset;
             r[index].TypeSize = offsets[index].TypeSize;
             r[index].FieldId = schema[i].FieldId;
-            r[index].Type = schema[i].Type;
+            r[index].FieldType = schema[i].FieldType;
             r[index].Qualities = schema[i].Qualities;
 
-            if (schema[i].Type.Has(Type::TYPE_STRUCT)) {
+            if (schema[i].FieldType.Has(Type::TYPE_STRUCT)) {
                 r[index].StructDef = structArgs[structIndex++];
             }
 
