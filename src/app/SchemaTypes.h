@@ -35,9 +35,9 @@ namespace app {
 typedef uint32_t FieldId_t;
 
 constexpr FieldId_t InvalidFieldId() {return 0xffffffff;}
-constexpr FieldId_t FieldId(uint16_t vendorId, uint16_t scopedId) { 
-    return (((uint32_t)vendorId << 16) | (scopedId & 0xffff)); 
-}
+// constexpr FieldId_t FieldId(uint16_t vendorId, uint16_t scopedId) { 
+//     return (((uint32_t)vendorId << 16) | (scopedId & 0xffff)); 
+// }
 
 typedef uint32_t ClusterId_t;
 

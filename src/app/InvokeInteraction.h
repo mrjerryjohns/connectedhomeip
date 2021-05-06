@@ -39,7 +39,7 @@
 #include <app/MessageDef/CommandDataElement.h>
 #include <app/MessageDef/CommandList.h>
 #include <app/MessageDef/InvokeCommand.h>
-#include <SchemaTypes.h>
+#include "SchemaTypes.h"
 #include <functional>
 
 namespace chip {

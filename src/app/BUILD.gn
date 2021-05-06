@@ -37,6 +37,12 @@ if (chip_im_config_critical_section == "") {
 }
 
 config("app_config") {
+  include_dirs = [
+    "util",
+    ".",
+    "${target_gen_dir}/include",
+  ]
+    
   if (chip_enable_schema_check) {
     defines = [ "CHIP_CONFIG_IM_ENABLE_SCHEMA_CHECK=1" ]
   } else {

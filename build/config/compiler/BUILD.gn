@@ -210,8 +210,6 @@ config("symbols_default") {
   cflags = [ "-g${symbol_level}" ]
 }
 
-  cflags_cc = [ "-std=gnu++14" ]
-  cflags_objcc = [ "-std=gnu++14" ]
 config("std_default") {
   cflags_c = [ "-std=${c_standard}" ]
   cflags_objc = [ "-std=${c_standard}" ]
