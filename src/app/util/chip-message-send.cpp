@@ -27,6 +27,7 @@
 #include <messaging/ExchangeContext.h>
 #include <messaging/ExchangeMgr.h>
 #include <protocols/Protocols.h>
+#include <protocols/temp_zcl/TempZCL.h>
 #include <support/logging/CHIPLogging.h>
 #include <transport/raw/MessageHeader.h>
 
@@ -87,9 +88,7 @@ EmberStatus chipSendUnicast(Messaging::ExchangeContext * exchange, EmberApsFrame
     memcpy(buffer->Start() + frameSize, message, messageLength);
     buffer->SetDataLength(dataLength);
 
-    // TODO: Disable CRMP for now, because it just doesn't seem to work
-    sendFlags.Set(Messaging::SendMessageFlags::kNoAutoRequestAck);
-    CHIP_ERROR err = exchange->SendMessage(Protocols::TempZCL::Id, 0, std::move(buffer), sendFlags);
+    CHIP_ERROR err = exchange->SendMessage(Protocols::TempZCL::MsgType::TempZCLResponse, std::move(buffer), sendFlags);
 
     if (err != CHIP_NO_ERROR)
     {
