@@ -71,8 +71,11 @@ public:
     virtual ~ClusterClient() = default;
 
     InvokeInteraction::CommandParams BuildParams() {
-        InvokeInteraction::CommandParams params(mRemoteEndpoint, 0, (ClusterId)mClusterDescriptor->ClusterId, 
-                                                0, InvokeInteraction::CommandParams::TargetType::kTargetEndpoint);
+        InvokeInteraction::CommandParams params;
+        
+        params.EndpointId = mRemoteEndpoint;
+        params.ClusterId = (ClusterId)mClusterDescriptor->ClusterId;
+
         return params;
     }
 

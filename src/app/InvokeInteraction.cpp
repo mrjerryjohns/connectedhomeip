@@ -21,7 +21,7 @@
  *      This file defines Base class for a CHIP IM Command
  *
  */
-
+#include <platform/CHIPDeviceLayer.h>
 #include "InvokeInteraction.h"
 #include "InteractionModelEngine.h"
 #include "system/SystemPacketBuffer.h"
@@ -31,7 +31,7 @@
 namespace chip {
 namespace app {
 
-CHIP_ERROR InvokeInteraction::Init(Messaging::ExchangeContext *apExchangeContext)
+CHIP_ERROR InvokeInteraction::Init(Messaging::ExchangeContext *apExchangeContext, bool aOnCommandRx)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -45,20 +45,24 @@ CHIP_ERROR InvokeInteraction::Init(Messaging::ExchangeContext *apExchangeContext
 
     mpExchangeCtx = apExchangeContext;
 
+    if (aOnCommandRx) {
+        mState = kStateAwaitingResponse;
+    }
+
 exit:
     return err;
 }
 
-CHIP_ERROR InvokeInteraction::StartCommandHeader(CommandParams &aParams)
+CHIP_ERROR InvokeInteraction::StartCommandHeader(const CommandParams &aParams)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::System::PacketBufferHandle txBuf;
 
+    VerifyOrExit(mState == kStateReady, err = CHIP_ERROR_INCORRECT_STATE);
+
     if (mMode == kModeUnset) {
         mMode = kModeClientInitiator;
     }
-
-    IncrementHoldoffRef();
 
     //
     // We only allocate the actual TX buffer once we have a command to add, which is now!
@@ -98,6 +102,33 @@ exit:
     return err;
 }
 
+
+CHIP_ERROR InvokeInteraction::AddStatusCode(const CommandParams &aParams, 
+                             const Protocols::SecureChannel::GeneralStatusCode aGeneralCode,
+                             const Protocols::Id aProtocolId, const uint16_t aProtocolCode)
+{
+    CHIP_ERROR err;
+    StatusElement::Builder statusBuilder;
+
+    VerifyOrExit(mState == kStateReady, err = CHIP_ERROR_INCORRECT_STATE);
+    
+    // We don't need to sandwich this with Increment/Decrement calls, since this call to AddStatus
+    // can only happen as part of an existing 'HandleMessage' call flow, which in turn is already handling
+    // calling those two methods to correctly finalize a message if needed.
+
+    err = StartCommandHeader(aParams);
+    SuccessOrExit(err);
+
+    statusBuilder = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().CreateStatusElementBuilder();
+    statusBuilder.EncodeStatusElement(aGeneralCode, aProtocolId.ToFullyQualifiedSpecForm(), aProtocolCode).EndOfStatusElement();
+
+    err = statusBuilder.GetError();
+    SuccessOrExit(err);
+
+exit:
+    return err;
+}
+ 
 CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -106,6 +137,11 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
     InvokeCommand::Parser invokeCommandParser;
     CommandList::Parser commandListParser;
 
+    VerifyOrExit(mState == kStateAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
+
+    // Now that we've received the response, move our state back to ready to permit adding commands
+    mState = kStateReady;
+    
     if (mMode == kModeUnset) {
         mMode = kModeServerResponder;
     }
@@ -113,6 +149,9 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
     if (mMode == kModeClientInitiator) {
         assert(mState == kStateReady);
     }
+
+    // Reset our expectation of responses, so that it can be set again below if need be.
+    mExpectsResponses = false;
 
     reader.Init(std::move(payload));
 
@@ -225,6 +264,7 @@ CHIP_ERROR InvokeInteraction::DecrementHoldoffRef()
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     VerifyOrExit(mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mState == kStateReady, err = CHIP_ERROR_INCORRECT_STATE);
 
     assert(mHoldOffCount > 0);
     mHoldOffCount--;
@@ -239,10 +279,33 @@ CHIP_ERROR InvokeInteraction::DecrementHoldoffRef()
 
         err = SendMessage(std::move(buf));
         SuccessOrExit(err);
+
+        mState = kStateAwaitingResponse;
+    }
+
+    ReleaseOnCompletion();
+    
+exit:
+    return err;
+}
+
+void InvokeInteraction::ReleaseOnCompletion()
+{
+    VerifyOrExit(mState != kStateReleased, );
+
+    if (mHoldOffCount == 0 && mExpectsResponses == false) {
+        if (mpExchangeCtx) {
+            mpExchangeCtx->Close();
+            mpExchangeCtx = nullptr;
+        }
+
+        mState = kStateReleased;
+
+        DeviceLayer::PlatformMgr().ScheduleWork(InteractionModelEngine::FreeReleasedInvokeObjects, (intptr_t)InteractionModelEngine::GetInstance());
     }
 
 exit:
-    return err;
+    return;
 }
 
 // Only get here if we have a valid buffer
@@ -250,7 +313,7 @@ CHIP_ERROR InvokeInteraction::FinalizeMessage(System::PacketBufferHandle &aBuf)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    //VerifyOrExit(mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mpExchangeCtx, err = CHIP_ERROR_INCORRECT_STATE);
     VerifyOrExit(mState != kStateAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
 
     {

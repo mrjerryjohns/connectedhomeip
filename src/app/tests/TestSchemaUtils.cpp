@@ -42,6 +42,7 @@
 #include <system/TLVPacketBufferBackingStore.h>
 #include <transport/SecureSessionMgr.h>
 #include <transport/raw/UDP.h>
+#include <protocols/secure_channel/MessageCounterManager.h>
 
 #include <nlunit-test.h>
 
@@ -51,6 +52,7 @@ namespace chip {
 static System::Layer gSystemLayer;
 static SecureSessionMgr gSessionManager;
 static Messaging::ExchangeManager gExchangeManager;
+static secure_channel::MessageCounterManager gMessageCounterManager;
 static TransportMgr<Transport::UDP> gTransportManager;
 static Transport::AdminId gAdminId = 0;
 
@@ -244,7 +246,7 @@ void InitializeChip(nlTestSuite * apSuite)
 
     chip::gSystemLayer.Init(nullptr);
 
-    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins);
+    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins, &chip::gMessageCounterManager);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
     err = chip::gExchangeManager.Init(&chip::gSessionManager);

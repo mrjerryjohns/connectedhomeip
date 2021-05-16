@@ -51,7 +51,8 @@ public:
     enum State
     {
         kStateReady = 0,           //< The invoke command message has been initialized and is ready
-        kStateAwaitingResponse = 1
+        kStateAwaitingResponse = 1,
+        kStateReleased = 3         //< This object has now been effectively retired/released, but not actually deleted. There should be no further interactions against this object aside from calling the destructor.
     };
 
     /**
@@ -66,18 +67,12 @@ public:
             kTargetGroup        = 0x02, /**< Set when the GroupId field is valid */
         };
        
-        CommandParams() : EndpointId(0), GroupId(0), ClusterId(0), CommandId(0), Flags(TargetType::kTargetEndpoint) {}
-        CommandParams(chip::EndpointId endpointId, chip::GroupId groupId, chip::ClusterId clusterId, chip::CommandId commandId,
-                      const BitFlags<TargetType> & flags) :
-            EndpointId(endpointId),
-            GroupId(groupId), ClusterId(clusterId), CommandId(commandId), Flags(flags)
-        {}
-
-        chip::EndpointId EndpointId;
-        chip::GroupId GroupId;
-        chip::ClusterId ClusterId;
-        chip::CommandId CommandId;
-        BitFlags<TargetType> Flags;
+        chip::EndpointId EndpointId = 0;
+        chip::GroupId GroupId = 0;
+        chip::ClusterId ClusterId = 0;
+        chip::CommandId CommandId = 0;
+        BitFlags<TargetType> Flags = TargetType::kTargetEndpoint;
+        bool ExpectsResponses = false;
     };
 
     class CommandHandler
@@ -87,11 +82,23 @@ public:
         virtual ~CommandHandler() {} 
     };
 
-    CHIP_ERROR Init(Messaging::ExchangeContext *aExchangeCtx = NULL);
+    CHIP_ERROR Init(Messaging::ExchangeContext *aExchangeCtx = NULL, bool aOnCommandRx = false);
+
+    CHIP_ERROR AddStatusCode(const CommandParams &aParams, 
+                             const Protocols::SecureChannel::GeneralStatusCode aGeneralCode,
+                             const Protocols::Id aProtocolId, const uint16_t aProtocolCode);
 
     template <typename F>
     CHIP_ERROR AddCommand(CommandParams &aParams, F f) {
         CHIP_ERROR err = CHIP_NO_ERROR;
+
+        IncrementHoldoffRef();
+
+        //
+        // Update our accumulated flag that tracks if any command going into this invoke
+        // expects responses
+        //
+        mExpectsResponses |= aParams.ExpectsResponses;
 
         err = StartCommandHeader(aParams);
         SuccessOrExit(err);
@@ -106,7 +113,8 @@ public:
         SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
 
         //
-        // This will auto-send the message if the hold off count dips back to 0
+        // This will auto-send the message if the hold off count goes from 1 -> 0 (which it should, because
+        // of the increment we did earlier in this call)
         //
         err = DecrementHoldoffRef();
         SuccessOrExit(err);
@@ -116,13 +124,14 @@ exit:
     }
 
     Messaging::ExchangeContext *GetExchange() { return mpExchangeCtx; }
-
     void IncrementHoldoffRef();
     CHIP_ERROR DecrementHoldoffRef();
-    void Abort();
-    
+   
+
 private:
-    CHIP_ERROR StartCommandHeader(CommandParams &aParams);
+    CHIP_ERROR StartCommandHeader(const CommandParams &aParams);
+
+    void ReleaseOnCompletion();
     
     //
     // Only invoked by InteractionModelEngine
@@ -145,7 +154,8 @@ private:
     friend class TestInvokeInteraction;
     int mHoldOffCount = 0;
     Mode mMode = kModeUnset;
-    State mState;
+    bool mExpectsResponses = false;
+    State mState = kStateReady;
     chip::System::PacketBufferTLVWriter mWriter;
     app::InvokeCommand::Builder mInvokeCommandBuilder;
     Messaging::ExchangeContext *mpExchangeCtx = nullptr;

@@ -149,6 +149,7 @@ public:
 
 private:
     friend class reporting::Engine;
+
     void OnUnknownMsgType(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
                           const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload);
     void OnInvokeCommandRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
@@ -171,8 +172,13 @@ private:
     ReadClient mReadClients[CHIP_MAX_NUM_READ_CLIENT];
     ReadHandler mReadHandlers[CHIP_MAX_NUM_READ_HANDLER];
     reporting::Engine mReportingEngine;
+
+    static void FreeReleasedInvokeObjects(intptr_t a);
+
+private:
     friend class InvokeInteraction;
 
+private:
     BitMapObjectPool<ClusterClient*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterClients;
     BitMapObjectPool<ClusterServer*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterServers;
     BitMapObjectPool<InvokeInteraction, CHIP_MAX_NUM_INVOKE_INTERACTIONS> mInvokeInteractions;

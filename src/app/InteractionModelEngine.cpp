@@ -140,6 +140,19 @@ CHIP_ERROR InteractionModelEngine::NewReadClient(ReadClient ** const apReadClien
     return err;
 }
 
+void InteractionModelEngine::FreeReleasedInvokeObjects(intptr_t a)
+{
+    InteractionModelEngine *_this = reinterpret_cast<InteractionModelEngine *>(a);
+
+    _this->mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
+        if (apInteraction->mState == InvokeInteraction::kStateReleased) {
+            _this->mInvokeInteractions.ReleaseObject(apInteraction);
+        }
+
+        return true;
+    });
+}
+
 InvokeInteraction* InteractionModelEngine::NewInvokeInteraction(ClusterClient *aClient)
 {
     InvokeInteraction *pInteraction = nullptr;
@@ -147,8 +160,8 @@ InvokeInteraction* InteractionModelEngine::NewInvokeInteraction(ClusterClient *a
 
     if (aClient) {
         mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
-            if (apInteraction->GetExchangeContext()->GetSecureSessionHandle().GetAdminId() == aClient->GetRemoteAdmin() &&
-                apInteraction->GetExchangeContext()->GetSecureSessionHandle().GetPeerNodeId() == aClient->GetRemoteNodeId()) {
+            if (apInteraction->GetExchangeContext()->GetSecureSession().GetAdminId() == aClient->GetRemoteAdmin() &&
+                apInteraction->GetExchangeContext()->GetSecureSession().GetPeerNodeId() == aClient->GetRemoteNodeId()) {
                 pInteraction = apInteraction;
                 return false;
             }
@@ -228,7 +241,7 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
     InvokeInteraction *interaction = nullptr;
     
     if (mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
-        printf("Found one - %x (%x)\n", (uintptr_t)apInteraction->GetExchangeContext(), (uintptr_t)apExchangeContext);
+        printf("Found one - %lx (%lx)\n", (uintptr_t)apInteraction->GetExchangeContext(), (uintptr_t)apExchangeContext);
 
         if (apInteraction->GetExchangeContext() == apExchangeContext) {
             printf("Done\n");
@@ -241,12 +254,14 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
         interaction = mInvokeInteractions.CreateObject();
         assert(interaction != nullptr);
 
-        err = interaction->Init(apExchangeContext);
+        err = interaction->Init(apExchangeContext, true);
         SuccessOrExit(err);
     }
 
     err = interaction->HandleMessage(std::move(aPayload));
     SuccessOrExit(err);
+
+    interaction->ReleaseOnCompletion();
 
 exit:
     ChipLogFunctError(err);

@@ -46,10 +46,10 @@ void PrintTag(uint64_t tag, int tabLevel)
     PrintTabs(tabLevel);
 
     if (IsContextTag(tag)) {
-        printf("%ld = ", TagNumFromTag(tag));
+        printf("%u = ", TagNumFromTag(tag));
     }
     else if (IsProfileTag(tag)) {
-        printf("0x%04x::0x%04x:0x%02lx = ", VendorIdFromTag(tag), ProfileNumFromTag(tag), TagNumFromTag(tag));
+        printf("0x%04x::0x%04x:0x%02x = ", VendorIdFromTag(tag), ProfileNumFromTag(tag), TagNumFromTag(tag));
     }
 }
 

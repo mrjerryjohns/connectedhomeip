@@ -23,6 +23,7 @@
  */
 
 #include "TestCluster.h"
+#include "messaging/ExchangeDelegate.h"
 #include <app/InteractionModelEngine.h>
 #include <core/CHIPCore.h>
 #include <core/CHIPTLV.h>
@@ -41,6 +42,7 @@
 #include <system/TLVPacketBufferBackingStore.h>
 #include <transport/SecureSessionMgr.h>
 #include <transport/raw/UDP.h>
+#include <protocols/secure_channel/MessageCounterManager.h>
 
 #include <nlunit-test.h>
 
@@ -50,6 +52,7 @@ namespace chip {
 static System::Layer gSystemLayer;
 static SecureSessionMgr gSessionManager;
 static Messaging::ExchangeManager gExchangeManager;
+static secure_channel::MessageCounterManager gMessageCounterManager;
 static TransportMgr<Transport::UDP> gTransportManager;
 static Transport::AdminId gAdminId = 0;
 
@@ -64,6 +67,8 @@ class TestServerCluster : public ClusterServer
 public:
     TestServerCluster();
     CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload);
+
+    bool mGotCommandA = false;
 };
 
 TestServerCluster::TestServerCluster()
@@ -82,11 +87,6 @@ TestServerCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
 
     if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandAId) {
         printf("Received CommandA\n");
-
-        // 
-        // To prevent the stack from actually sending this message
-        //
-        invokeInteraction.IncrementHoldoffRef();
 
         gServerInvoke = &invokeInteraction;
 
@@ -135,6 +135,8 @@ TestServerCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
 
             NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
         }
+
+        mGotCommandA = true;
     }
 
     return CHIP_NO_ERROR;
@@ -146,6 +148,8 @@ public:
     TestClientCluster();
     CHIP_ERROR SendCommand(InvokeInteraction **apInvoke);
     CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload);
+
+    bool mGotCommandB = false;
 };
 
 TestClientCluster::TestClientCluster()
@@ -170,7 +174,7 @@ TestClientCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
         // 
         // To prevent the stack from actually sending this message
         //
-        invokeInteraction.IncrementHoldoffRef();
+        //invokeInteraction.IncrementHoldoffRef();
 
         NL_TEST_ASSERT(gpSuite, payload != nullptr); 
 
@@ -190,6 +194,8 @@ TestClientCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
             NL_TEST_ASSERT(gpSuite, e[i].x == (uint8_t)(255 - i));
             NL_TEST_ASSERT(gpSuite, e[i].y == (uint8_t)(255 - i));
         }
+
+        mGotCommandB = true;
     }
 
     return CHIP_NO_ERROR;
@@ -214,13 +220,13 @@ CHIP_ERROR TestClientCluster::SendCommand(InvokeInteraction **apInvoke)
     }
     
     p.CommandId = chip::app::Cluster::TestCluster::kCommandAId;
+    p.ExpectsResponses = true;
 
     invoke = StartInvoke();
     SuccessOrExit(err);
 
     gClientEc = invoke->GetExchange();
 
-    invoke->IncrementHoldoffRef();
     *apInvoke = invoke;
 
     err = invoke->AddCommand(p, [&c](chip::TLV::TLVWriter &writer, uint64_t tag) {
@@ -231,13 +237,35 @@ exit:
     return err;
 }
 
-class TestInvokeInteraction
+class TestInvokeInteraction : public Messaging::ExchangeContextUnitTestDelegate
 {
 public:
     static void TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext);
+    void InterceptMessage(System::PacketBufferHandle buf);
+    int GetNumActiveInvokes();
+    System::PacketBufferHandle mBuf;
 };
 
 using namespace chip::TLV;
+
+void TestInvokeInteraction::InterceptMessage(System::PacketBufferHandle buf)
+{
+    mBuf = std::move(buf);
+}
+
+TestInvokeInteraction gTestInvoke;
+
+int TestInvokeInteraction::GetNumActiveInvokes()
+{
+    int count = 0;
+
+    InteractionModelEngine::GetInstance()->mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
+        count++;
+        return true;
+    });
+
+    return count;
+}
 
 void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext)
 {
@@ -263,12 +291,11 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
     err = client.SendCommand(&invoke);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-    err = invoke->FinalizeMessage(buf);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    
+    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 1);
+
     {
         chip::System::PacketBufferTLVReader reader;
-        reader.Init(std::move(buf));
+        reader.Init(std::move(gTestInvoke.mBuf));
         chip::TLV::Utilities::Print(reader);
         buf = reader.GetBackingStore().Release();
     }
@@ -277,20 +304,26 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
 
     chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(pRxEc, packetHdr, payloadHdr, std::move(buf));
     NL_TEST_ASSERT(apSuite, gServerInvoke != nullptr);
+    NL_TEST_ASSERT(apSuite, server.mGotCommandA);
 
-    err = gServerInvoke->FinalizeMessage(buf);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-
+    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 2);
+    chip::app::InteractionModelEngine::GetInstance()->FreeReleasedInvokeObjects((intptr_t)chip::app::InteractionModelEngine::GetInstance());
+    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 1);
+    
     {
         chip::System::PacketBufferTLVReader reader;
-        reader.Init(std::move(buf));
+        reader.Init(std::move(gTestInvoke.mBuf));
         chip::TLV::Utilities::Print(reader);
         buf = reader.GetBackingStore().Release();
     }
 
     NL_TEST_ASSERT(apSuite, gClientEc != nullptr);
-    printf("gClientEc = %lx\n", (uintptr_t)gClientEc);
+
     chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(gClientEc, packetHdr, payloadHdr, std::move(buf));
+    NL_TEST_ASSERT(apSuite, client.mGotCommandB);
+
+    chip::app::InteractionModelEngine::GetInstance()->FreeReleasedInvokeObjects((intptr_t)chip::app::InteractionModelEngine::GetInstance());
+    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 0);
 }
 
 } // namespace app
@@ -314,7 +347,7 @@ void InitializeChip(nlTestSuite * apSuite)
 
     chip::gSystemLayer.Init(nullptr);
 
-    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins);
+    err = chip::gSessionManager.Init(chip::kTestDeviceNodeId, &chip::gSystemLayer, &chip::gTransportManager, &admins, &chip::gMessageCounterManager);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
     err = chip::gExchangeManager.Init(&chip::gSessionManager);
@@ -322,6 +355,8 @@ void InitializeChip(nlTestSuite * apSuite)
 
     err = chip::app::InteractionModelEngine::GetInstance()->Init(&chip::gExchangeManager, nullptr);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+
+    chip::Messaging::ExchangeContext::SetUnitTestDelegate(&chip::app::gTestInvoke);
 }
 
 // clang-format off
