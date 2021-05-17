@@ -93,8 +93,6 @@ CHIP_ERROR ExchangeContext::SendMessage(Protocols::Id protocolId, uint8_t msgTyp
     }
 #endif
 
-    return CHIP_NO_ERROR;
-
     VerifyOrReturnError(mExchangeMgr != nullptr, CHIP_ERROR_INTERNAL);
 
     // Don't let method get called on a freed object.
