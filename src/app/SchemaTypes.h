@@ -47,7 +47,10 @@ enum class Type: uint8_t
     TYPE_UINT8 = (1 << 0),
     TYPE_UINT32 = (1 << 1),
     TYPE_ARRAY = (1 << 2),
-    TYPE_STRUCT = (1 << 3)
+    TYPE_STRUCT = (1 << 3),
+    TYPE_UINT64 = (1 << 4),
+    TYPE_OCTSTR = (1 << 5),
+    TYPE_STRING = (1 << 6)
 };
 
 enum QualityMasks {

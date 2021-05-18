@@ -204,8 +204,12 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
         // Look-up the right instance
         //
         if (mMode == kModeServerResponder) {
+            bool foundClusterInstance = false;
+
             InteractionModelEngine::GetInstance()->GetClusterServerSet().ForEachActiveObject([&](ClusterServer **s) {
                 if ((*s)->GetClusterId() == params.ClusterId && (*s)->GetEndpoint() == params.EndpointId) {
+                    foundClusterInstance = true;
+
                     err = (*s)->HandleCommand(params, *this, HasData ? &dataReader : NULL);
                     SuccessOrExit(err);
 
@@ -219,6 +223,15 @@ CHIP_ERROR InvokeInteraction::HandleMessage(System::PacketBufferHandle payload)
 
                 return false;
             });
+
+            if (!foundClusterInstance) {
+                ChipLogProgress(DataManagement, "Could not find a matching server cluster for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
+                                params.ClusterId, params.EndpointId, params.CommandId);
+
+                err = AddStatusCode(params, Protocols::SecureChannel::GeneralStatusCode::kBadRequest,
+                                    Protocols::SecureChannel::Id, Protocols::SecureChannel::kProtocolCodeGeneralFailure);
+                SuccessOrExit(err);
+            }
         }
         else {
             InteractionModelEngine::GetInstance()->GetClusterClientSet().ForEachActiveObject([&](ClusterClient **c) {

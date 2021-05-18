@@ -13,15 +13,21 @@ namespace chip::app::Cluster::TestCluster {
     namespace StructA {
         enum FieldId {
             kFieldIdJ = 0,
-            kFieldIdK = 1
+            kFieldIdK = 1,
+            kFieldIdL = 2,
+            kFieldIdM = 3
         };
 
         constexpr uint64_t FieldJ = (0x00000001ULL << 32) | 0x0b;
         constexpr uint64_t FieldK = (0x00000001ULL << 32) | 0x0c;
+        constexpr uint64_t FieldL = (0x00000001ULL << 32) | 0x20;
+        constexpr uint64_t FieldM = (0x00000001ULL << 32) | 0x21;
 
         constexpr _FieldDescriptor _Schema[] = {
-            {kFieldIdJ, Type::TYPE_UINT8, kNone,                  FieldJ, {}},
-            {kFieldIdK, Type::TYPE_UINT8, kNullable,              FieldK, {}},
+            {kFieldIdJ, Type::TYPE_UINT8,   kNone,                  FieldJ, {}},
+            {kFieldIdK, Type::TYPE_UINT8,   kNullable,              FieldK, {}},
+            {kFieldIdL, Type::TYPE_OCTSTR,  kNone,                  FieldL, {}},
+            {kFieldIdM, Type::TYPE_STRING,  kNone,                  FieldM, {}},
         };
     }
     

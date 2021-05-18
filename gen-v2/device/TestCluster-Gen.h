@@ -14,14 +14,10 @@ namespace chip::app::Cluster::TestCluster {
         
         class Type {
             public:
-                struct empty {};
-
-                void SetX(uint8_t v) { x = v; }
-                void SetY(uint8_t v) { y = v; }
-
-            public:
                 uint8_t x;
                 uint8_t y;
+                chip::ByteSpan l;
+                chip::Span<char> m;
                 
                 static const StructDescriptor<NumImplementedFields> &mDescriptor;
         };
@@ -32,12 +28,6 @@ namespace chip::app::Cluster::TestCluster {
         extern const StructDescriptor<NumImplementedFields> Descriptor;
         
         class Type {
-            public:
-                struct empty {};
-
-                void SetX(uint8_t v) { x = v; }
-                void SetY(uint8_t v) { y = v; }
-
             public:
                 uint8_t x;
                 uint8_t y;

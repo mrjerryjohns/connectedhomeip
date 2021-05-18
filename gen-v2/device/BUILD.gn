@@ -24,7 +24,11 @@ static_library("device") {
   sources = [
     "TestCluster.cpp",
     "TestCluster.h",
-    "TestCluster-Gen.h"
+    "TestCluster-Gen.h",
+
+    "NetworkCommissioningCluster.cpp",
+    "NetworkCommissioningCluster.h",
+    "NetworkCommissioningCluster-Gen.h"
   ]
 
   public_deps = [

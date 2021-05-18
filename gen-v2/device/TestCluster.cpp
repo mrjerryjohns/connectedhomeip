@@ -13,6 +13,8 @@ namespace chip::app::Cluster::TestCluster {
 
             r[i++] = {offsetof(class Type, x), sizeof(Type::x)};
             r[i++] = {offsetof(class Type, y), sizeof(Type::y)};
+            r[i++] = {offsetof(class Type, l), sizeof(uint8_t)};
+            r[i++] = {offsetof(class Type, m), sizeof(char)};
 
             return r;
         }

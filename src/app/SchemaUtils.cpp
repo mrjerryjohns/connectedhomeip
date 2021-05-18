@@ -55,19 +55,21 @@ CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
             FieldDescriptor tmpDescriptor = *schemaIter;
             chip::Span<const FieldDescriptor> tmpDescriptorList = {&tmpDescriptor, 1};
 
-            tmpDescriptor.FieldType.Clear(Type::TYPE_ARRAY);
-            tmpDescriptor.Offset = 0;
+            if (p.data() && p.size()) {
+                tmpDescriptor.FieldType.Clear(Type::TYPE_ARRAY);
+                tmpDescriptor.Offset = 0;
 
-            err = writer.StartContainer(TLV::ContextTag((uint8_t)(schemaIter->FieldId)), TLV::kTLVType_Array, outerContainerType2);
-            SuccessOrExit(err);
+                err = writer.StartContainer(TLV::ContextTag((uint8_t)(schemaIter->FieldId)), TLV::kTLVType_Array, outerContainerType2);
+                SuccessOrExit(err);
 
-            for (const uint8_t *ptr = p.data(); ptr < (p.data() + p.size() * schemaIter->TypeSize); ptr += schemaIter->TypeSize) {
-                err = EncodeSchemaElement(tmpDescriptorList, (void *)ptr, 0, writer, true);
+                for (const uint8_t *ptr = p.data(); ptr < (p.data() + p.size() * schemaIter->TypeSize); ptr += schemaIter->TypeSize) {
+                    err = EncodeSchemaElement(tmpDescriptorList, (void *)ptr, 0, writer, true);
+                    SuccessOrExit(err);
+                }
+
+                err = writer.EndContainer(outerContainerType2);
                 SuccessOrExit(err);
             }
-
-            err = writer.EndContainer(outerContainerType2);
-            SuccessOrExit(err);
         }
         else if (schemaIter->FieldType.Has(Type::TYPE_STRUCT)) {
             err = EncodeSchemaElement(schemaIter->StructDef, (void *)((uintptr_t)(buf) + schemaIter->Offset), 
@@ -84,6 +86,22 @@ CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
             uint32_t *v = (uint32_t *)((uintptr_t)(buf) + schemaIter->Offset);
             err = writer.Put(fieldTag, *v);
             SuccessOrExit(err);
+        }
+        else if (schemaIter->FieldType.Has(Type::TYPE_OCTSTR)) {
+            chip::ByteSpan &p = *(reinterpret_cast<chip::ByteSpan *>((uintptr_t)(buf) + schemaIter->Offset));
+
+            if (p.data() && p.size()) {
+                err = writer.PutBytes(TLV::ContextTag((uint8_t)(schemaIter->FieldId)), p.data(), (uint32_t)p.size());
+                SuccessOrExit(err);
+            }
+        }
+        else if (schemaIter->FieldType.Has(Type::TYPE_STRING)) {
+            chip::Span<char> &p = *(reinterpret_cast<chip::Span<char>*>((uintptr_t)(buf) + schemaIter->Offset));
+
+            if (p.data() && p.size()) {
+                err = writer.PutString(TLV::ContextTag((uint8_t)(schemaIter->FieldId)), p.data(), (uint32_t)p.size());
+                SuccessOrExit(err);
+            }
         }
     }
 
@@ -176,6 +194,36 @@ CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
                     err = reader.Get(*v);
                     SuccessOrExit(err);
                     break;
+                }
+                else if (schemaIter->FieldType.Has(Type::TYPE_UINT64)) {
+                    uint64_t *v = (uint64_t *)((uintptr_t)buf + schemaIter->Offset);
+                    err = reader.Get(*v);
+                    SuccessOrExit(err);
+                    break;
+                }
+                else if (schemaIter->FieldType.Has(Type::TYPE_OCTSTR)) {
+                    chip::ByteSpan &p = *(reinterpret_cast<chip::ByteSpan *>((uintptr_t)(buf) + schemaIter->Offset));
+                    uint32_t sz = reader.GetLength();
+
+                    VerifyOrExit(p.data() && p.size() >= sz, err = CHIP_ERROR_DESERIALIZE_NULL_BUF);
+
+                    err = reader.GetBytes((uint8_t *)p.data(), (uint32_t)p.size());
+                    SuccessOrExit(err);
+
+                    chip::ByteSpan *p1 = (reinterpret_cast<chip::ByteSpan *>((uintptr_t)(buf) + schemaIter->Offset));
+                    *p1 = chip::ByteSpan(p.data(), sz);
+                }
+                else if (schemaIter->FieldType.Has(Type::TYPE_STRING)) {
+                    chip::Span<char> &p = *(reinterpret_cast<chip::Span<char> *>((uintptr_t)(buf) + schemaIter->Offset));
+                    uint32_t sz = reader.GetLength();
+
+                    VerifyOrExit(p.data() && p.size() >= sz, err = CHIP_ERROR_DESERIALIZE_NULL_BUF);
+
+                    err = reader.GetString((char *)p.data(), (uint32_t)p.size());
+                    SuccessOrExit(err);
+
+                    chip::Span<char> *p1 = (reinterpret_cast<chip::Span<char> *>((uintptr_t)(buf) + schemaIter->Offset));
+                    *p1 = chip::Span<char>(p.data(), sz);
                 }
             }
         }

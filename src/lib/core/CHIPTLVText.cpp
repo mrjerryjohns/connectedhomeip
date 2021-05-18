@@ -138,6 +138,35 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             break;
         }
 
+        case kTLVType_ByteString:
+        {
+            uint32_t sz = reader.GetLength();
+            uint8_t buf[sz];
+
+            err = reader.GetBytes(buf, sz);
+            SuccessOrExit(err);
+
+            for (uint32_t i = 0; i < sz; i++) {
+                printf("%02x ", buf[i]);
+            }
+
+            printf("\n");
+            break;
+        }
+
+        case kTLVType_UTF8String:
+        {
+            uint32_t sz = reader.GetLength();
+            char buf[sz + 1];
+
+            err = reader.GetString(buf, sz + 1);
+            SuccessOrExit(err);
+
+            buf[sz] = '\0';
+            printf("%s\n", buf);
+            break;
+        }
+
         default:
         {
             printf("?,\n");

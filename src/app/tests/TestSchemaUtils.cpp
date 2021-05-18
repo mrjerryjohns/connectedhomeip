@@ -113,12 +113,18 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecSimple(nlTestSuite * apSuite, void
     chip::app::Cluster::TestCluster::StructA::Type sa;
     CHIP_ERROR err;
     chip::app::TestSchemaUtils *_this = static_cast<chip::app::TestSchemaUtils *>(apContext);
+    uint8_t buf[4] = {0, 1, 2, 3};
+    char strbuf[10] = "chip";
 
     _this->mpSuite = apSuite;
     _this->SetupBuf();
 
     sa.x = 20;
     sa.y = 30;
+    sa.l = chip::ByteSpan{buf};
+
+    // TODO: Bug in CHIPTLVWriter/Reader that don't quite deal with the null-terminator correctly.
+    sa.m = chip::Span(strbuf, strlen(strbuf));
     
     err = chip::app::EncodeSchemaElement(sa, _this->mWriter, TLV::AnonymousTag);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
@@ -126,6 +132,11 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecSimple(nlTestSuite * apSuite, void
     _this->DumpBuf();
 
     memset(&sa, 0, sizeof(sa));
+    memset(buf, 0, std::size(buf));
+    memset(strbuf, 0, std::size(strbuf));
+
+    sa.l = chip::ByteSpan{buf};
+    sa.m = chip::Span{strbuf};
 
     _this->SetupReader();
 
@@ -134,6 +145,12 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecSimple(nlTestSuite * apSuite, void
 
     NL_TEST_ASSERT(apSuite, sa.x == 20);
     NL_TEST_ASSERT(apSuite, sa.y == 30);
+
+    for (uint32_t i = 0; i < std::size(buf); i++) {
+        NL_TEST_ASSERT(apSuite, buf[i] == i);
+    }
+
+    NL_TEST_ASSERT(apSuite, strncmp(strbuf, "chip", std::size("chip")) == 0);
 }
 
 void TestSchemaUtils::TestSchemaUtilsEncAndDecNestedStruct(nlTestSuite * apSuite, void * apContext)
