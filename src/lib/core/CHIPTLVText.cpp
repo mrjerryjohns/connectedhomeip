@@ -27,6 +27,7 @@
 #include <core/CHIPTLVUtilities.hpp>
 #include <support/CodeUtils.h>
 #include <core/CHIPTLVTypes.h>
+#include <cstdint>
 
 namespace chip {
 
@@ -46,12 +47,14 @@ void PrintTag(uint64_t tag, int tabLevel)
     PrintTabs(tabLevel);
 
     if (IsContextTag(tag)) {
-        printf("%u = ", TagNumFromTag(tag));
+        printf("%" PRIu32 " = ", TagNumFromTag(tag));
     }
     else if (IsProfileTag(tag)) {
-        printf("0x%04x::0x%04x:0x%02x = ", VendorIdFromTag(tag), ProfileNumFromTag(tag), TagNumFromTag(tag));
+        printf("0x%" PRIx16 "::0x%" PRIx16 ":0x%" PRIu32 " = ", VendorIdFromTag(tag), ProfileNumFromTag(tag), TagNumFromTag(tag));
     }
 }
+
+#pragma GCC diagnostic ignored "-Wstack-usage="
 
 CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
 {
@@ -147,7 +150,7 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             SuccessOrExit(err);
 
             for (uint32_t i = 0; i < sz; i++) {
-                printf("%02x ", buf[i]);
+                printf("Revision %" PRIu16 "", buf[i]);
             }
 
             printf("\n");

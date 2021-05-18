@@ -241,10 +241,7 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
     InvokeInteraction *interaction = nullptr;
     
     if (mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
-        printf("Found one - %lx (%lx)\n", (uintptr_t)apInteraction->GetExchangeContext(), (uintptr_t)apExchangeContext);
-
         if (apInteraction->GetExchangeContext() == apExchangeContext) {
-            printf("Done\n");
             interaction = apInteraction;
             return false;        
         }
