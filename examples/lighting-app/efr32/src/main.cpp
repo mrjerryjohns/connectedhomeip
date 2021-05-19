@@ -47,6 +47,9 @@
 #include "lcd.h"
 #endif
 
+#include <app/InteractionModelEngine.h>
+#include <TestCluster-Gen.h>
+
 #if CHIP_ENABLE_OPENTHREAD
 #include <mbedtls/platform.h>
 #include <openthread/cli.h>
@@ -94,12 +97,36 @@ extern "C" void vApplicationIdleHook(void)
     Internal::EFR32Config::RepackNvm3Flash();
 }
 
+using namespace chip::app;
+
+class TestServerCluster : public ClusterServer
+{
+public:
+    TestServerCluster();
+    CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload) { return 0;}
+};
+
+TestServerCluster::TestServerCluster()
+    : ClusterServer(&chip::app::Cluster::TestCluster::ClusterDescriptor)
+{
+}
+
+TestServerCluster gServerCluster;
+
 // ================================================================================
 // Main Code
 // ================================================================================
 int main(void)
 {
     int ret = CHIP_ERROR_MAX;
+
+    {
+        TLVWriter writer;
+        chip::app::Cluster::TestCluster::StructA::Type sa;
+        chip::app::EncodeSchemaElement(sa, writer, TLV::AnonymousTag);
+    }
+
+    InteractionModelEngine::GetInstance()->RegisterServer(&gServerCluster);
 
     init_efrPlatform();
     mbedtls_platform_set_calloc_free(CHIPPlatformMemoryCalloc, CHIPPlatformMemoryFree);

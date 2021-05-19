@@ -37,6 +37,9 @@ CONFIG: ConfigDescription = {
 
 def main(argv):
     status = 0
+
+    netdelta = 0
+
     try:
         config = Config().init(CONFIG)
         config.argparse.add_argument('inputs', metavar='FILE', nargs=2)
@@ -62,20 +65,25 @@ def main(argv):
         while a and b:
             if a.symbol < b.symbol:
                 differences.append((-a.size, a.size, 0, a.symbol))
+                netdelta = netdelta - a.size
                 a = next(ai, None)
                 continue
             if a.symbol > b.symbol:
                 differences.append((b.size, 0, b.size, b.symbol))
                 b = next(bi, None)
+                netdelta = netdelta + b.size
                 continue
             if a.size != b.size:
                 differences.append((b.size - a.size, a.size, b.size, a.symbol))
+                netdelta = netdelta + (b.size - a.size)
             a = next(ai, None)
             b = next(bi, None)
         for a in ai:
             differences.append((-a.size, a.size, 0, a.symbol))
+            netdelta = netdelta - a.size
         for b in bi:
             differences.append((b.size, 0, b.size, b.symbol))
+            netdelta = netdelta + b.size
 
         df = pd.DataFrame(differences,
                           columns=['change', 'a-size', 'b-size', 'symbol'])
@@ -86,6 +94,8 @@ def main(argv):
         df.sort_values(by=['change', 'symbol'], ascending=[False, True],
                        inplace=True)
         memdf.report.write_dfs(config, {'Differences': df})
+
+        print("Net Delta = " + str(netdelta))
 
     except Exception as exception:
         status = 1

@@ -43,6 +43,8 @@
 #include <system/TLVPacketBufferBackingStore.h>
 #include <transport/SecureSessionMgr.h>
 
+#include <../clusters/network-commissioning/network-commissioning.h>
+
 #if CHIP_DEVICE_CONFIG_ENABLE_MDNS
 #include <app/server/Mdns.h>
 #endif
@@ -470,6 +472,21 @@ static void ChipEventHandler(const DeviceLayer::ChipDeviceEvent * event, intptr_
 }
 #endif
 
+chip::app::Cluster::NetworkCommissioningServer gNetworkCommissioningServer;
+
+CHIP_ERROR AddCoreServerClusters()
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    gNetworkCommissioningServer.SetEndpoint(0);
+
+    err = chip::app::InteractionModelEngine::GetInstance()->RegisterServer(&gNetworkCommissioningServer);
+    SuccessOrExit(err);
+
+exit:
+    return err;
+}
+
 // The function will initialize datamodel handler and then start the server
 // The server assumes the platform's networking has been setup already
 void InitServer(AppDelegate * delegate)
@@ -566,6 +583,9 @@ void InitServer(AppDelegate * delegate)
     // Register to receive unsolicited Service Provisioning messages from the exchange manager.
     err = gExchangeMgr.RegisterUnsolicitedMessageHandlerForProtocol(Protocols::ServiceProvisioning::Id, &gCallbacks);
     VerifyOrExit(err == CHIP_NO_ERROR, err = CHIP_ERROR_NO_UNSOLICITED_MESSAGE_HANDLER);
+
+    err = AddCoreServerClusters();
+    SuccessOrExit(err);
 
 exit:
     if (err != CHIP_NO_ERROR)

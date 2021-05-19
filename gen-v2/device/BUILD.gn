@@ -39,6 +39,7 @@ static_library("device") {
 
   public_configs = [
     "${chip_root}/src/app:app_config",
+    ":includes"
   ]
 
   defines = []

@@ -17,18 +17,12 @@
  */
 
 #include "network-commissioning.h"
+#include "NetworkCommissioningCluster-Gen.h"
+#include "core/CHIPError.h"
+#include "protocols/secure_channel/Constants.h"
 
 #include <cstring>
 #include <type_traits>
-
-#include <app/util/af.h>
-#include <gen/att-storage.h>
-#include <gen/attribute-id.h>
-#include <gen/attribute-type.h>
-#include <gen/callback.h>
-#include <gen/cluster-id.h>
-#include <gen/command-id.h>
-#include <gen/enums.h>
 
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
@@ -50,164 +44,178 @@
 #endif
 
 // TODO: Configuration should move to build-time configuration
-#ifndef CHIP_CLUSTER_NETWORK_COMMISSIONING_MAX_NETWORKS
-#define CHIP_CLUSTER_NETWORK_COMMISSIONING_MAX_NETWORKS 4
-#endif // CHIP_CLUSTER_NETWORK_COMMISSIONING_MAX_NETWORKS
 
-using namespace chip;
-using namespace chip::app;
-using namespace chip::app::clusters;
-using namespace chip::app::clusters::NetworkCommissioning;
+using namespace chip::app::Cluster;
 
 namespace chip {
 namespace app {
 namespace clusters {
 namespace NetworkCommissioning {
 
-constexpr uint8_t kMaxNetworkIDLen       = 32;
-constexpr uint8_t kMaxThreadDatasetLen   = 254; // As defined in Thread spec.
-constexpr uint8_t kMaxWiFiSSIDLen        = 32;
-constexpr uint8_t kMaxWiFiCredentialsLen = 64;
-constexpr uint8_t kMaxNetworks           = CHIP_CLUSTER_NETWORK_COMMISSIONING_MAX_NETWORKS;
-
-enum class NetworkType : uint8_t
+void DispatchServerCommand(app::Command * apCommandObj, CommandId aCommandId, EndpointId aEndpointId, TLV::TLVReader & aDataTlv)
 {
-    kUndefined = 0,
-    kWiFi      = 1,
-    kThread    = 2,
-    kEthernet  = 3,
-};
+}
 
-struct ThreadNetworkInfo
-{
-    uint8_t mDataset[kMaxThreadDatasetLen];
-    uint8_t mDatasetLen;
-};
+}
+}
+}
+}
 
-struct WiFiNetworkInfo
+NetworkCommissioningServer::NetworkCommissioningServer()
+    : ClusterServer(&NetworkCommissioningCluster::ClusterDescriptor)
 {
-    uint8_t mSSID[kMaxWiFiSSIDLen + 1];
-    uint8_t mSSIDLen;
-    uint8_t mCredentials[kMaxWiFiCredentialsLen];
-    uint8_t mCredentialsLen;
-};
+}
 
-struct NetworkInfo
+CHIP_ERROR NetworkCommissioningServer::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
 {
-    uint8_t mNetworkID[kMaxNetworkIDLen];
-    uint8_t mNetworkIDLen;
-    uint8_t mEnabled;
-    NetworkType mNetworkType;
-    union NetworkData
-    {
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    switch (commandParams.CommandId) {
+        case NetworkCommissioningCluster::kAddThreadNetworkRequestCommandId:
+            {
+                NetworkCommissioningCluster::AddThreadNetworkCommand::Type req;
+                uint8_t DataSet[200];
+
+                req.OperationalDataSet = chip::ByteSpan{DataSet};
+
+                err = DecodeSchemaElement(req, *payload);
+                SuccessOrExit(err);
+
+                err = AddThreadNetwork(req);
+                break;
+            }
+
+        case NetworkCommissioningCluster::kAddWifiNetworkRequestCommandId:
+            {
+                NetworkCommissioningCluster::AddWifiNetworkCommand::Type req;
+                uint8_t Ssid[200];
+                uint8_t Credentials[200];
+
+                req.Ssid = chip::ByteSpan{Ssid};
+                req.Credentials = chip::ByteSpan{Credentials};
+
+                err = DecodeSchemaElement(req, *payload);
+                SuccessOrExit(err);
+
+                err = AddWifiNetwork(req);
+                break;
+            }
+
+        case NetworkCommissioningCluster::kEnableNetworkRequestCommandId:
+            {
+                NetworkCommissioningCluster::EnableNetworkCommand::Type req;
+                uint8_t NetworkId[64];
+
+                req.NetworkId = chip::ByteSpan{NetworkId};
+
+                err = DecodeSchemaElement(req, *payload);
+                SuccessOrExit(err);
+
+                err = EnableNetwork(req);
+                break;
+            }
+    }
+
+exit:
+    //
+    // This is unfortunate that we're diluting errors returned down to a singular code. We should in-fact, be sending
+    // back either IM or Cluster status codes within each of the 'handlers' above.
+    //
+    err = invokeInteraction.AddStatusCode(commandParams, Protocols::SecureChannel::GeneralStatusCode::kSuccess, Protocols::InteractionModel::Id, err);
+    return err;
+}
+
+CHIP_ERROR NetworkCommissioningServer::AddThreadNetwork(NetworkCommissioningCluster::AddThreadNetworkCommand::Type &request)
+{
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-        Thread::OperationalDataset mThread;
-#endif
-#if defined(CHIP_DEVICE_LAYER_TARGET)
-        WiFiNetworkInfo mWiFi;
-#endif
-    } mData;
-};
-
-namespace {
-// The internal network info containing credentials. Need to find some better place to save these info.
-NetworkInfo sNetworks[kMaxNetworks];
-} // namespace
-
-EmberAfNetworkCommissioningError OnAddThreadNetworkCommandCallbackInternal(app::Command *, EndpointId, ByteSpan operationalDataset,
-                                                                           uint64_t breadcrumb, uint32_t timeoutMs)
-{
-#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
-    EmberAfNetworkCommissioningError err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_BOUNDS_EXCEEDED;
+    CHIP_ERROR err = CHIP_ERROR_INVALID_ARGUMENT;
 
     for (size_t i = 0; i < kMaxNetworks; i++)
     {
-        if (sNetworks[i].mNetworkType == NetworkType::kUndefined)
+        if (mNetworks[i].mNetworkType == NetworkType::kUndefined)
         {
-            Thread::OperationalDataset & dataset = sNetworks[i].mData.mThread;
-            CHIP_ERROR error                     = dataset.Init(operationalDataset);
+            Thread::OperationalDataset & dataset = mNetworks[i].mData.mThread;
+            CHIP_ERROR error                     = dataset.Init(request.OperationalDataSet);
 
             if (error != CHIP_NO_ERROR)
             {
                 ChipLogDetail(Zcl, "Failed to parse Thread operational dataset: %s", ErrorStr(error));
-                err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_UNKNOWN_ERROR;
+                err = CHIP_ERROR_INVALID_ARGUMENT;
                 break;
             }
 
             uint8_t extendedPanId[Thread::kSizeExtendedPanId];
 
-            static_assert(sizeof(sNetworks[i].mNetworkID) >= sizeof(extendedPanId),
+            static_assert(sizeof(mNetworks[i].mNetworkID) >= sizeof(extendedPanId),
                           "Network ID must be larger than Thread extended PAN ID!");
             SuccessOrExit(dataset.GetExtendedPanId(extendedPanId));
-            memcpy(sNetworks[i].mNetworkID, extendedPanId, sizeof(extendedPanId));
-            sNetworks[i].mNetworkIDLen = sizeof(extendedPanId);
+            memcpy(mNetworks[i].mNetworkID, extendedPanId, sizeof(extendedPanId));
+            mNetworks[i].mNetworkIDLen = sizeof(extendedPanId);
 
-            sNetworks[i].mNetworkType = NetworkType::kThread;
-            sNetworks[i].mEnabled     = false;
+            mNetworks[i].mNetworkType = NetworkType::kThread;
+            mNetworks[i].mEnabled     = false;
 
-            err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_SUCCESS;
+            err = CHIP_NO_ERROR;
             break;
         }
     }
 
 exit:
     // TODO: We should encode response command here.
-
     ChipLogDetail(Zcl, "AddThreadNetwork: %d", err);
     return err;
 #else
     // The target does not supports ThreadNetwork. We should not add AddThreadNetwork command in that case then the upper layer will
     // return "Command not found" error.
-    return EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_UNKNOWN_ERROR;
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 #endif
 }
 
-EmberAfNetworkCommissioningError OnAddWiFiNetworkCommandCallbackInternal(app::Command *, EndpointId, ByteSpan ssid,
-                                                                         ByteSpan credentials, uint64_t breadcrumb,
-                                                                         uint32_t timeoutMs)
+CHIP_ERROR NetworkCommissioningServer::AddWifiNetwork(NetworkCommissioningCluster::AddWifiNetworkCommand::Type &request)
 {
 #if defined(CHIP_DEVICE_LAYER_TARGET)
-    EmberAfNetworkCommissioningError err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_BOUNDS_EXCEEDED;
+    CHIP_ERROR err = CHIP_ERROR_INVALID_ARGUMENT;
 
     for (size_t i = 0; i < kMaxNetworks; i++)
     {
-        if (sNetworks[i].mNetworkType == NetworkType::kUndefined)
+        if (mNetworks[i].mNetworkType == NetworkType::kUndefined)
         {
-            VerifyOrExit(ssid.size() <= sizeof(sNetworks[i].mData.mWiFi.mSSID),
-                         err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_OUT_OF_RANGE);
-            memcpy(sNetworks[i].mData.mWiFi.mSSID, ssid.data(), ssid.size());
+            VerifyOrExit(request.Ssid.size() <= sizeof(mNetworks[i].mData.mWiFi.mSSID),
+                         err = CHIP_ERROR_INVALID_ARGUMENT);
+            memcpy(mNetworks[i].mData.mWiFi.mSSID, request.Ssid.data(), request.Ssid.size());
 
-            using WiFiSSIDLenType = decltype(sNetworks[i].mData.mWiFi.mSSIDLen);
-            VerifyOrExit(chip::CanCastTo<WiFiSSIDLenType>(ssid.size()), err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_OUT_OF_RANGE);
-            sNetworks[i].mData.mWiFi.mSSIDLen = static_cast<WiFiSSIDLenType>(ssid.size());
+            using WiFiSSIDLenType = decltype(mNetworks[i].mData.mWiFi.mSSIDLen);
+            VerifyOrExit(chip::CanCastTo<WiFiSSIDLenType>(request.Ssid.size()), err = CHIP_ERROR_INVALID_ARGUMENT);
+            mNetworks[i].mData.mWiFi.mSSIDLen = static_cast<WiFiSSIDLenType>(request.Ssid.size());
 
-            VerifyOrExit(credentials.size() <= sizeof(sNetworks[i].mData.mWiFi.mCredentials),
-                         err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_OUT_OF_RANGE);
-            memcpy(sNetworks[i].mData.mWiFi.mCredentials, credentials.data(), credentials.size());
+            VerifyOrExit(request.Credentials.size() <= sizeof(mNetworks[i].mData.mWiFi.mCredentials),
+                         err = CHIP_ERROR_INVALID_ARGUMENT);
+            memcpy(mNetworks[i].mData.mWiFi.mCredentials, request.Credentials.data(), request.Credentials.size());
 
-            using WiFiCredentialsLenType = decltype(sNetworks[i].mData.mWiFi.mCredentialsLen);
-            VerifyOrExit(chip::CanCastTo<WiFiCredentialsLenType>(ssid.size()),
-                         err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_OUT_OF_RANGE);
-            sNetworks[i].mData.mWiFi.mCredentialsLen = static_cast<WiFiCredentialsLenType>(credentials.size());
+            using WiFiCredentialsLenType = decltype(mNetworks[i].mData.mWiFi.mCredentialsLen);
+            VerifyOrExit(chip::CanCastTo<WiFiCredentialsLenType>(request.Ssid.size()),
+                         err = CHIP_ERROR_INVALID_ARGUMENT);
+            mNetworks[i].mData.mWiFi.mCredentialsLen = static_cast<WiFiCredentialsLenType>(request.Credentials.size());
 
-            VerifyOrExit(ssid.size() <= sizeof(sNetworks[i].mNetworkID), err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_OUT_OF_RANGE);
-            memcpy(sNetworks[i].mNetworkID, sNetworks[i].mData.mWiFi.mSSID, ssid.size());
+            VerifyOrExit(request.Ssid.size() <= sizeof(mNetworks[i].mNetworkID), err = CHIP_ERROR_INVALID_ARGUMENT);
+            memcpy(mNetworks[i].mNetworkID, mNetworks[i].mData.mWiFi.mSSID, request.Ssid.size());
 
-            using NetworkIDLenType = decltype(sNetworks[i].mNetworkIDLen);
-            VerifyOrExit(chip::CanCastTo<NetworkIDLenType>(ssid.size()), err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_OUT_OF_RANGE);
-            sNetworks[i].mNetworkIDLen = static_cast<NetworkIDLenType>(ssid.size());
+            using NetworkIDLenType = decltype(mNetworks[i].mNetworkIDLen);
+            VerifyOrExit(chip::CanCastTo<NetworkIDLenType>(request.Ssid.size()), err = CHIP_ERROR_INVALID_ARGUMENT);
+            mNetworks[i].mNetworkIDLen = static_cast<NetworkIDLenType>(request.Ssid.size());
 
-            sNetworks[i].mNetworkType = NetworkType::kWiFi;
-            sNetworks[i].mEnabled     = false;
+            mNetworks[i].mNetworkType = NetworkType::kWiFi;
+            mNetworks[i].mEnabled     = false;
 
-            err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_SUCCESS;
+            err = CHIP_NO_ERROR;
             break;
         }
     }
 
-    VerifyOrExit(err == EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_SUCCESS, );
+    VerifyOrExit(err == CHIP_NO_ERROR, );
 
-    ChipLogDetail(Zcl, "WiFi provisioning data: SSID: %s", ssid);
+    ChipLogDetail(Zcl, "WiFi provisioning data: SSID: %s", request.Ssid);
+
 exit:
     // TODO: We should encode response command here.
 
@@ -220,12 +228,11 @@ exit:
 #endif
 }
 
-namespace {
-CHIP_ERROR DoEnableNetwork(NetworkInfo * network)
+CHIP_ERROR NetworkCommissioningServer::DoEnableNetwork(NetworkInfo * network)
 {
     switch (network->mNetworkType)
     {
-    case NetworkType::kThread:
+        case NetworkType::kThread:
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 // TODO: On linux, we are using Reset() instead of Detach() to disable thread network, which is not expected.
 // Upstream issue: https://github.com/openthread/ot-br-posix/issues/755
@@ -240,53 +247,48 @@ CHIP_ERROR DoEnableNetwork(NetworkInfo * network)
         break;
     case NetworkType::kWiFi:
 #if defined(CHIP_DEVICE_LAYER_TARGET)
-    {
-        // TODO: Currently, DeviceNetworkProvisioningDelegateImpl assumes that ssid and credentials are null terminated strings,
-        // which is not correct, this should be changed once we have better method for commissioning wifi networks.
-        DeviceLayer::DeviceNetworkProvisioningDelegateImpl deviceDelegate;
-        ReturnErrorOnFailure(deviceDelegate.ProvisionWiFi(reinterpret_cast<const char *>(network->mData.mWiFi.mSSID),
-                                                          reinterpret_cast<const char *>(network->mData.mWiFi.mCredentials)));
-        break;
-    }
+        {
+            // TODO: Currently, DeviceNetworkProvisioningDelegateImpl assumes that ssid and credentials are null terminated strings,
+            // which is not correct, this should be changed once we have better method for commissioning wifi networks.
+            DeviceLayer::DeviceNetworkProvisioningDelegateImpl deviceDelegate;
+            ReturnErrorOnFailure(deviceDelegate.ProvisionWiFi(reinterpret_cast<const char *>(network->mData.mWiFi.mSSID),
+                                                              reinterpret_cast<const char *>(network->mData.mWiFi.mCredentials)));
+            break;
+        }
 #else
         return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 #endif
-    break;
+        break;
     case NetworkType::kEthernet:
     case NetworkType::kUndefined:
     default:
         return CHIP_ERROR_NOT_IMPLEMENTED;
     }
     network->mEnabled = true;
+
     return CHIP_NO_ERROR;
 }
-} // namespace
 
-EmberAfNetworkCommissioningError OnEnableNetworkCommandCallbackInternal(app::Command *, EndpointId, ByteSpan networkID,
-                                                                        uint64_t breadcrumb, uint32_t timeoutMs)
+CHIP_ERROR NetworkCommissioningServer::EnableNetwork(NetworkCommissioningCluster::EnableNetworkCommand::Type &request)
 {
     size_t networkSeq;
-    EmberAfNetworkCommissioningError err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_NETWORK_ID_NOT_FOUND;
+    CHIP_ERROR err = CHIP_ERROR_INVALID_ARGUMENT;
 
     for (networkSeq = 0; networkSeq < kMaxNetworks; networkSeq++)
     {
-        if (sNetworks[networkSeq].mNetworkIDLen == networkID.size() &&
-            sNetworks[networkSeq].mNetworkType != NetworkType::kUndefined &&
-            memcmp(sNetworks[networkSeq].mNetworkID, networkID.data(), networkID.size()) == 0)
+        if (mNetworks[networkSeq].mNetworkIDLen == request.NetworkId.size() &&
+            mNetworks[networkSeq].mNetworkType != NetworkType::kUndefined &&
+            memcmp(mNetworks[networkSeq].mNetworkID, request.NetworkId.data(), request.NetworkId.size()) == 0)
         {
             // TODO: Currently, we cannot figure out the detailed error from network provisioning on DeviceLayer, we should
             // implement this in device layer.
-            VerifyOrExit(DoEnableNetwork(&sNetworks[networkSeq]) == CHIP_NO_ERROR,
-                         err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_UNKNOWN_ERROR);
-            ExitNow(err = EMBER_ZCL_NETWORK_COMMISSIONING_ERROR_SUCCESS);
+            VerifyOrExit(DoEnableNetwork(&mNetworks[networkSeq]) == CHIP_NO_ERROR,
+                         err = CHIP_ERROR_INVALID_ARGUMENT);
+            ExitNow(err = CHIP_NO_ERROR);
         }
     }
+
     // TODO: We should encode response command here.
 exit:
     return err;
 }
-
-} // namespace NetworkCommissioning
-} // namespace clusters
-} // namespace app
-} // namespace chip

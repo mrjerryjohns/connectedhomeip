@@ -94,6 +94,8 @@ efr32_executable("lighting_app") {
 
   deps = [
     ":sdk",
+    "${chip_root}/src/app:app",
+    "${chip_root}/gen-v2/device",
     "${chip_root}/examples/common/QRCode",
     "${chip_root}/examples/lighting-app/lighting-common",
     "${chip_root}/src/lib",
