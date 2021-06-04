@@ -85,6 +85,11 @@ void AndroidDeviceControllerWrapper::SetJavaObjectRef(JavaVM * vm, jobject obj)
     mJavaObjectRef = GetJavaEnv()->NewGlobalRef(obj);
 }
 
+void AndroidDeviceControllerWrapper::CallJavaMethod(const char * methodName, jint argument)
+{
+    CallVoidInt(GetJavaEnv(), mJavaObjectRef, methodName, argument);
+}
+
 JNIEnv * AndroidDeviceControllerWrapper::GetJavaEnv()
 {
     if (mJavaVM == nullptr)
@@ -99,7 +104,8 @@ JNIEnv * AndroidDeviceControllerWrapper::GetJavaEnv()
 }
 
 AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(JavaVM * vm, jobject deviceControllerObj,
-                                                                             chip::NodeId nodeId, chip::System::Layer * systemLayer,
+                                                                             pthread_mutex_t * stackLock, chip::NodeId nodeId,
+                                                                             chip::System::Layer * systemLayer,
                                                                              chip::Inet::InetLayer * inetLayer,
                                                                              CHIP_ERROR * errInfoOnFailure)
 {
@@ -130,7 +136,7 @@ AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(Jav
         *errInfoOnFailure = CHIP_ERROR_NO_MEMORY;
         return nullptr;
     }
-    std::unique_ptr<AndroidDeviceControllerWrapper> wrapper(new AndroidDeviceControllerWrapper(std::move(controller)));
+    std::unique_ptr<AndroidDeviceControllerWrapper> wrapper(new AndroidDeviceControllerWrapper(std::move(controller), stackLock));
 
     wrapper->SetJavaObjectRef(vm, deviceControllerObj);
     wrapper->Controller()->SetUdpListenPort(CHIP_PORT + 1);
@@ -143,7 +149,7 @@ AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(Jav
     initParams.inetLayer       = inetLayer;
     initParams.bleLayer        = GetJNIBleLayer();
 
-    *errInfoOnFailure = wrapper->OpCredsIssuer().Initialize();
+    *errInfoOnFailure = wrapper->OpCredsIssuer().Initialize(*initParams.storageDelegate);
     if (*errInfoOnFailure != CHIP_NO_ERROR)
     {
         return nullptr;
@@ -170,20 +176,23 @@ AndroidDeviceControllerWrapper * AndroidDeviceControllerWrapper::AllocateNew(Jav
 
 void AndroidDeviceControllerWrapper::OnStatusUpdate(chip::Controller::DevicePairingDelegate::Status status)
 {
-    CallVoidInt(GetJavaEnv(), mJavaObjectRef, "onStatusUpdate", static_cast<jint>(status));
+    StackUnlockGuard unlockGuard(mStackLock);
+    CallJavaMethod("onStatusUpdate", static_cast<jint>(status));
 }
 
 void AndroidDeviceControllerWrapper::OnPairingComplete(CHIP_ERROR error)
 {
-    CallVoidInt(GetJavaEnv(), mJavaObjectRef, "onPairingComplete", static_cast<jint>(error));
+    StackUnlockGuard unlockGuard(mStackLock);
+    CallJavaMethod("onPairingComplete", static_cast<jint>(error));
 }
 
 void AndroidDeviceControllerWrapper::OnPairingDeleted(CHIP_ERROR error)
 {
-    CallVoidInt(GetJavaEnv(), mJavaObjectRef, "onPairingDeleted", static_cast<jint>(error));
+    StackUnlockGuard unlockGuard(mStackLock);
+    CallJavaMethod("onPairingDeleted", static_cast<jint>(error));
 }
 
-void AndroidDeviceControllerWrapper::OnMessage(chip::System::PacketBufferHandle msg) {}
+void AndroidDeviceControllerWrapper::OnMessage(chip::System::PacketBufferHandle && msg) {}
 
 void AndroidDeviceControllerWrapper::OnStatusChange(void) {}
 

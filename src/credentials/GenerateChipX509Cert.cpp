@@ -277,7 +277,8 @@ CHIP_ERROR EncodeChipDNs(ChipDNParams * params, uint8_t numParams, ASN1Writer & 
             ASN1_START_SET
             {
                 uint8_t chipAttrStr[kChip64bitAttrUTF8Length + 1];
-                snprintf(reinterpret_cast<char *>(chipAttrStr), sizeof(chipAttrStr), "%016" PRIX64, params[i].Value);
+                snprintf(reinterpret_cast<char *>(chipAttrStr), sizeof(chipAttrStr), ChipLogFormatX64,
+                         ChipLogValueX64(params[i].Value));
 
                 ASN1_START_SEQUENCE
                 {
@@ -336,7 +337,7 @@ CHIP_ERROR EncodeTBSCert(const X509CertRequestParams & requestParams, Certificat
     uint8_t numDNs = 1;
     bool isCA      = true;
 
-    VerifyOrReturnError(requestParams.SerialNumber > 0, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(requestParams.SerialNumber >= 0, CHIP_ERROR_INVALID_ARGUMENT);
 
     ASN1_START_SEQUENCE
     {

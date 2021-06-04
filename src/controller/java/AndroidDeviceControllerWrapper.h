@@ -38,9 +38,25 @@ class AndroidDeviceControllerWrapper : public chip::Controller::DevicePairingDel
 public:
     ~AndroidDeviceControllerWrapper();
 
+    // Use StackUnlockGuard to temporarily unlock the CHIP BLE stack, e.g. when calling application
+    // or Android BLE code as a result of a BLE event.
+    struct StackUnlockGuard
+    {
+    public:
+        StackUnlockGuard(pthread_mutex_t * mutex) : mMutex(mutex) { pthread_mutex_unlock(mMutex); }
+        ~StackUnlockGuard() { pthread_mutex_lock(mMutex); }
+
+    private:
+        pthread_mutex_t * mMutex;
+    };
+
     chip::Controller::DeviceCommissioner * Controller() { return mController.get(); }
     chip::Controller::ExampleOperationalCredentialsIssuer & OpCredsIssuer() { return mOpCredsIssuer; }
     void SetJavaObjectRef(JavaVM * vm, jobject obj);
+    jobject JavaObjectRef() { return mJavaObjectRef; }
+    jlong ToJNIHandle();
+
+    void CallJavaMethod(const char * methodName, jint argument);
 
     // DevicePairingDelegate implementation
     void OnStatusUpdate(chip::Controller::DevicePairingDelegate::Status status) override;
@@ -48,7 +64,7 @@ public:
     void OnPairingDeleted(CHIP_ERROR error) override;
 
     // DeviceStatusDelegate implementation
-    void OnMessage(chip::System::PacketBufferHandle msg) override;
+    void OnMessage(chip::System::PacketBufferHandle && msg) override;
     void OnStatusChange(void) override;
 
     // PersistentStorageDelegate implementation
@@ -56,28 +72,22 @@ public:
     CHIP_ERROR SyncGetKeyValue(const char * key, void * buffer, uint16_t & size) override;
     CHIP_ERROR SyncDeleteKeyValue(const char * key) override;
 
-    jlong ToJNIHandle()
-    {
-        static_assert(sizeof(jlong) >= sizeof(void *), "Need to store a pointer in a java handle");
-        return reinterpret_cast<jlong>(this);
-    }
-
-    jobject JavaObjectRef() { return mJavaObjectRef; }
-
     static AndroidDeviceControllerWrapper * FromJNIHandle(jlong handle)
     {
         return reinterpret_cast<AndroidDeviceControllerWrapper *>(handle);
     }
 
-    static AndroidDeviceControllerWrapper * AllocateNew(JavaVM * vm, jobject deviceControllerObj, chip::NodeId nodeId,
-                                                        chip::System::Layer * systemLayer, chip::Inet::InetLayer * inetLayer,
-                                                        CHIP_ERROR * errInfoOnFailure);
+    static AndroidDeviceControllerWrapper * AllocateNew(JavaVM * vm, jobject deviceControllerObj, pthread_mutex_t * stackLock,
+                                                        chip::NodeId nodeId, chip::System::Layer * systemLayer,
+                                                        chip::Inet::InetLayer * inetLayer, CHIP_ERROR * errInfoOnFailure);
 
 private:
     using ChipDeviceControllerPtr = std::unique_ptr<chip::Controller::DeviceCommissioner>;
 
     ChipDeviceControllerPtr mController;
     chip::Controller::ExampleOperationalCredentialsIssuer mOpCredsIssuer;
+
+    pthread_mutex_t * mStackLock;
 
     JavaVM * mJavaVM       = nullptr;
     jobject mJavaObjectRef = nullptr;
@@ -86,5 +96,13 @@ private:
 
     jclass GetPersistentStorageClass() { return GetJavaEnv()->FindClass("chip/devicecontroller/PersistentStorage"); }
 
-    AndroidDeviceControllerWrapper(ChipDeviceControllerPtr controller) : mController(std::move(controller)) {}
+    AndroidDeviceControllerWrapper(ChipDeviceControllerPtr controller, pthread_mutex_t * stackLock) :
+        mController(std::move(controller)), mStackLock(stackLock)
+    {}
 };
+
+inline jlong AndroidDeviceControllerWrapper::ToJNIHandle()
+{
+    static_assert(sizeof(jlong) >= sizeof(void *), "Need to store a pointer in a java handle");
+    return reinterpret_cast<jlong>(this);
+}

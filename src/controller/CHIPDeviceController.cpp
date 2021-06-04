@@ -35,8 +35,12 @@
 // module header, comes first
 #include <controller/CHIPDeviceController.h>
 
+#include <app/common/gen/enums.h>
+#include <controller/data_model/gen/CHIPClusters.h>
+
 #if CONFIG_DEVICE_LAYER
 #include <platform/CHIPDeviceLayer.h>
+#include <platform/ConfigurationManager.h>
 #endif
 
 #include <app/InteractionModelEngine.h>
@@ -44,6 +48,7 @@
 #include <core/CHIPCore.h>
 #include <core/CHIPEncoding.h>
 #include <core/CHIPSafeCasts.h>
+#include <credentials/CHIPCert.h>
 #include <messaging/ExchangeContext.h>
 #include <protocols/secure_channel/MessageCounterManager.h>
 #include <setup_payload/QRCodeSetupPayloadParser.h>
@@ -52,6 +57,7 @@
 #include <support/CHIPMem.h>
 #include <support/CodeUtils.h>
 #include <support/ErrorStr.h>
+#include <support/PersistentStorageMacros.h>
 #include <support/SafeInt.h>
 #include <support/ScopedBuffer.h>
 #include <support/TimeUtils.h>
@@ -73,6 +79,7 @@
 
 using namespace chip::Inet;
 using namespace chip::System;
+using namespace chip::Credentials;
 
 // For some applications those does not implement IMDelegate, the DeviceControllerInteractionModelDelegate will dispatch the
 // response to IMDefaultResponseCallback CHIPClientCallbacks, for the applications those implemented IMDelegate, this function will
@@ -87,31 +94,15 @@ namespace Controller {
 
 using namespace chip::Encoding;
 
-constexpr const char kPairedDeviceListKeyPrefix[] = "ListPairedDevices";
-constexpr const char kPairedDeviceKeyPrefix[]     = "PairedDevice";
-constexpr const char kNextAvailableKeyID[]        = "StartKeyID";
-
 #if CHIP_DEVICE_CONFIG_ENABLE_MDNS
 constexpr uint16_t kMdnsPort = 5353;
 #endif
 
 constexpr uint32_t kSessionEstablishmentTimeout = 30 * kMillisecondPerSecond;
 
-constexpr uint32_t kMaxCHIPOpCertLength = 600;
-
-// This macro generates a key using node ID an key prefix, and performs the given action
-// on that key.
-#define PERSISTENT_KEY_OP(node, keyPrefix, key, action)                                                                            \
-    do                                                                                                                             \
-    {                                                                                                                              \
-        constexpr size_t len = std::extent<decltype(keyPrefix)>::value;                                                            \
-        nlSTATIC_ASSERT_PRINT(len > 0, "keyPrefix length must be known at compile time");                                          \
-        /* 2 * sizeof(NodeId) to accomodate 2 character for each byte in Node Id */                                                \
-        char key[len + 2 * sizeof(NodeId) + 1];                                                                                    \
-        nlSTATIC_ASSERT_PRINT(sizeof(node) <= sizeof(uint64_t), "Node ID size is greater than expected");                          \
-        snprintf(key, sizeof(key), "%s%" PRIx64, keyPrefix, node);                                                                 \
-        action;                                                                                                                    \
-    } while (0)
+constexpr uint32_t kMaxCHIPOpCertLength = 1024;
+constexpr uint32_t kMaxCHIPCSRLength    = 1024;
+constexpr uint32_t kOpCSRNonceLength    = 32;
 
 DeviceController::DeviceController()
 {
@@ -181,8 +172,14 @@ CHIP_ERROR DeviceController::Init(NodeId localDeviceId, ControllerInitParams par
     );
     SuccessOrExit(err);
 
+    err = mAdmins.Init(mStorageDelegate);
+    SuccessOrExit(err);
+
     admin = mAdmins.AssignAdminId(mAdminId, localDeviceId);
     VerifyOrExit(admin != nullptr, err = CHIP_ERROR_NO_MEMORY);
+
+    err = mAdmins.LoadFromStorage(mAdminId);
+    SuccessOrExit(err);
 
     err = mSessionMgr->Init(localDeviceId, mSystemLayer, mTransportMgr, &mAdmins, mMessageCounterManager);
     SuccessOrExit(err);
@@ -225,10 +222,68 @@ CHIP_ERROR DeviceController::Init(NodeId localDeviceId, ControllerInitParams par
     mState         = State::Initialized;
     mLocalDeviceId = localDeviceId;
 
+    VerifyOrExit(params.operationalCredentialsDelegate != nullptr, err = CHIP_ERROR_INVALID_ARGUMENT);
+    mOperationalCredentialsDelegate = params.operationalCredentialsDelegate;
+
+    err = LoadLocalCredentials(admin);
+    SuccessOrExit(err);
+
     ReleaseAllDevices();
 
 exit:
     return err;
+}
+
+CHIP_ERROR DeviceController::LoadLocalCredentials(Transport::AdminPairingInfo * admin)
+{
+    ChipLogProgress(Controller, "Getting operational keys");
+    Crypto::P256Keypair * keypair = admin->GetOperationalKey();
+
+    ReturnErrorCodeIf(keypair == nullptr, CHIP_ERROR_NO_MEMORY);
+
+    if (!admin->AreCredentialsAvailable())
+    {
+        chip::Platform::ScopedMemoryBuffer<uint8_t> buffer1;
+        ReturnErrorCodeIf(!buffer1.Alloc(kMaxCHIPCSRLength), CHIP_ERROR_NO_MEMORY);
+
+        chip::Platform::ScopedMemoryBuffer<uint8_t> buffer2;
+        ReturnErrorCodeIf(!buffer2.Alloc(kMaxCHIPOpCertLength), CHIP_ERROR_NO_MEMORY);
+
+        uint8_t * CSR    = buffer1.Get();
+        size_t csrLength = kMaxCHIPCSRLength;
+        ReturnErrorOnFailure(keypair->NewCertificateSigningRequest(CSR, csrLength));
+
+        uint8_t * cert   = buffer2.Get();
+        uint32_t certLen = 0;
+
+        // TODO - Match the generated cert against CSR and operational keypair
+        //        Make sure it chains back to the trusted root.
+        ChipLogProgress(Controller, "Generating operational certificate for the controller");
+        ReturnErrorOnFailure(mOperationalCredentialsDelegate->GenerateNodeOperationalCertificate(
+            PeerId().SetNodeId(mLocalDeviceId), ByteSpan(CSR, csrLength), 1, cert, kMaxCHIPOpCertLength, certLen));
+
+        uint8_t * chipCert   = buffer1.Get();
+        uint32_t chipCertLen = 0;
+        ReturnErrorOnFailure(ConvertX509CertToChipCert(cert, certLen, chipCert, kMaxCHIPOpCertLength, chipCertLen));
+
+        ReturnErrorOnFailure(admin->SetOperationalCert(ByteSpan(chipCert, chipCertLen)));
+
+        ChipLogProgress(Controller, "Getting root certificate for the controller from the issuer");
+        ReturnErrorOnFailure(mOperationalCredentialsDelegate->GetRootCACertificate(0, cert, kMaxCHIPOpCertLength, certLen));
+
+        chipCertLen = 0;
+        ReturnErrorOnFailure(ConvertX509CertToChipCert(cert, certLen, chipCert, kMaxCHIPOpCertLength, chipCertLen));
+
+        ReturnErrorOnFailure(admin->SetRootCert(ByteSpan(chipCert, chipCertLen)));
+
+        ReturnErrorOnFailure(mAdmins.Store(admin->GetAdminId()));
+    }
+
+    ChipLogProgress(Controller, "Generating credentials");
+    ReturnErrorOnFailure(admin->GetCredentials(mCredentials, mCertificates, mRootKeyId));
+
+    ChipLogProgress(Controller, "Loaded credentials successfully");
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR DeviceController::Shutdown()
@@ -297,11 +352,8 @@ CHIP_ERROR DeviceController::Shutdown()
     mAdmins.ReleaseAdminId(mAdminId);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_MDNS
-    if (mDeviceAddressUpdateDelegate != nullptr)
-    {
-        Mdns::Resolver::Instance().SetResolverDelegate(nullptr);
-        mDeviceAddressUpdateDelegate = nullptr;
-    }
+    Mdns::Resolver::Instance().SetResolverDelegate(nullptr);
+    mDeviceAddressUpdateDelegate = nullptr;
 #endif // CHIP_DEVICE_CONFIG_ENABLE_MDNS
 
     return CHIP_NO_ERROR;
@@ -403,6 +455,10 @@ exit:
 
 CHIP_ERROR DeviceController::UpdateDevice(Device * device, uint64_t fabricId)
 {
+    // TODO - Detect when the device is fully provisioned, instead of relying on UpdateDevice()
+    device->ProvisioningComplete(mNextKeyId++);
+    PersistDevice(device);
+    PersistNextKeyId();
 #if CHIP_DEVICE_CONFIG_ENABLE_MDNS
     return Mdns::Resolver::Instance().ResolveNodeId(chip::PeerId().SetNodeId(device->GetDeviceId()).SetFabricId(fabricId),
                                                     chip::Inet::kIPAddressType_Any);
@@ -413,19 +469,13 @@ CHIP_ERROR DeviceController::UpdateDevice(Device * device, uint64_t fabricId)
 
 void DeviceController::PersistDevice(Device * device)
 {
-    // mStorageDelegate would not be null for a typical pairing scenario, as Pair()
-    // requires a valid storage delegate. However, test pairing usecase, that's used
-    // mainly by test applications, do not require a storage delegate. This is to
-    // reduce overheads on these tests.
-    // Let's make sure the delegate object is available before calling into it.
-    if (mStorageDelegate != nullptr && mState == State::Initialized)
+    if (mState == State::Initialized)
     {
-        SerializedDevice serialized;
-        device->Serialize(serialized);
-
-        // TODO: no need to base-64 the serialized values AGAIN
-        PERSISTENT_KEY_OP(device->GetDeviceId(), kPairedDeviceKeyPrefix, key,
-                          mStorageDelegate->SyncSetKeyValue(key, serialized.inner, sizeof(serialized.inner)));
+        device->Persist();
+    }
+    else
+    {
+        ChipLogError(Controller, "Failed to persist device. Controller not initialized.");
     }
 }
 
@@ -454,7 +504,7 @@ CHIP_ERROR DeviceController::ServiceEventSignal()
 }
 
 void DeviceController::OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
-                                         const PayloadHeader & payloadHeader, System::PacketBufferHandle msgBuf)
+                                         const PayloadHeader & payloadHeader, System::PacketBufferHandle && msgBuf)
 {
     uint16_t index;
     bool needClose = true;
@@ -579,15 +629,15 @@ uint16_t DeviceController::FindDeviceIndex(NodeId id)
 
 CHIP_ERROR DeviceController::InitializePairedDeviceList()
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    char * buffer  = nullptr;
+    CHIP_ERROR err   = CHIP_NO_ERROR;
+    uint8_t * buffer = nullptr;
 
     VerifyOrExit(mStorageDelegate != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
 
     if (!mPairedDevicesInitialized)
     {
-        constexpr uint16_t max_size = CHIP_MAX_SERIALIZED_SIZE_U64(kNumMaxPairedDevices);
-        buffer                      = static_cast<char *>(chip::Platform::MemoryCalloc(max_size, 1));
+        constexpr uint16_t max_size = sizeof(uint64_t) * kNumMaxPairedDevices;
+        buffer                      = static_cast<uint8_t *>(chip::Platform::MemoryCalloc(max_size, 1));
         uint16_t size               = max_size;
 
         VerifyOrExit(buffer != nullptr, err = CHIP_ERROR_INVALID_ARGUMENT);
@@ -600,7 +650,7 @@ CHIP_ERROR DeviceController::InitializePairedDeviceList()
         if (lookupError != CHIP_ERROR_KEY_NOT_FOUND)
         {
             VerifyOrExit(size <= max_size, err = CHIP_ERROR_INVALID_DEVICE_DESCRIPTOR);
-            err = SetPairedDeviceList(buffer);
+            err = SetPairedDeviceList(ByteSpan(buffer, size));
             SuccessOrExit(err);
         }
     }
@@ -618,15 +668,10 @@ exit:
     return err;
 }
 
-CHIP_ERROR DeviceController::SetPairedDeviceList(const char * serialized)
+CHIP_ERROR DeviceController::SetPairedDeviceList(ByteSpan serialized)
 {
-    CHIP_ERROR err  = CHIP_NO_ERROR;
-    size_t len      = strlen(serialized) + 1;
-    uint16_t lenU16 = static_cast<uint16_t>(len);
-    VerifyOrExit(CanCastTo<uint16_t>(len), err = CHIP_ERROR_INVALID_ARGUMENT);
-    err = mPairedDevices.DeserializeBase64(serialized, lenU16);
+    CHIP_ERROR err = mPairedDevices.Deserialize(serialized);
 
-exit:
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(Controller, "Failed to recreate the device list with buffer %s\n", serialized);
@@ -637,6 +682,14 @@ exit:
     }
 
     return err;
+}
+
+void DeviceController::PersistNextKeyId()
+{
+    if (mStorageDelegate != nullptr && mState == State::Initialized)
+    {
+        mStorageDelegate->SyncSetKeyValue(kNextAvailableKeyID, &mNextKeyId, sizeof(mNextKeyId));
+    }
 }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_MDNS
@@ -654,6 +707,7 @@ void DeviceController::OnNodeIdResolved(const chip::Mdns::ResolvedNodeData & nod
     PersistDevice(device);
 
 exit:
+
     if (mDeviceAddressUpdateDelegate != nullptr)
     {
         mDeviceAddressUpdateDelegate->OnAddressUpdateComplete(nodeData.mPeerId.GetNodeId(), err);
@@ -694,7 +748,7 @@ void DeviceController::OnCommissionableNodeFound(const chip::Mdns::Commissionabl
             return;
         }
     }
-    ChipLogError(Discovery, "Failed to add discovered commisisonable node - Insufficient space");
+    ChipLogError(Discovery, "Failed to add discovered commissionable node with hostname %s- Insufficient space", nodeData.hostName);
 }
 
 #endif // CHIP_DEVICE_CONFIG_ENABLE_MDNS
@@ -702,11 +756,21 @@ void DeviceController::OnCommissionableNodeFound(const chip::Mdns::Commissionabl
 ControllerDeviceInitParams DeviceController::GetControllerDeviceInitParams()
 {
     return ControllerDeviceInitParams{
-        .transportMgr = mTransportMgr, .sessionMgr = mSessionMgr, .exchangeMgr = mExchangeMgr, .inetLayer = mInetLayer
+        .transportMgr    = mTransportMgr,
+        .sessionMgr      = mSessionMgr,
+        .exchangeMgr     = mExchangeMgr,
+        .inetLayer       = mInetLayer,
+        .storageDelegate = mStorageDelegate,
+        .credentials     = &mCredentials,
     };
 }
 
-DeviceCommissioner::DeviceCommissioner()
+DeviceCommissioner::DeviceCommissioner() :
+    mSuccess(BasicSuccess, this), mFailure(BasicFailure, this),
+    mOpCSRResponseCallback(OnOperationalCertificateSigningRequest, this),
+    mOpCertResponseCallback(OnOperationalCertificateAddResponse, this), mRootCertResponseCallback(OnRootCertSuccessResponse, this),
+    mOnCSRFailureCallback(OnCSRFailureResponse, this), mOnCertFailureCallback(OnAddOpCertFailureResponse, this),
+    mOnRootCertFailureCallback(OnRootCertFailureResponse, this)
 {
     mPairingDelegate      = nullptr;
     mDeviceBeingPaired    = kNumMaxActiveDevices;
@@ -715,8 +779,6 @@ DeviceCommissioner::DeviceCommissioner()
 
 CHIP_ERROR DeviceCommissioner::Init(NodeId localDeviceId, CommissionerInitParams params)
 {
-    VerifyOrReturnError(params.operationalCredentialsDelegate != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-
     ReturnErrorOnFailure(DeviceController::Init(localDeviceId, params));
 
     uint16_t size    = sizeof(mNextKeyId);
@@ -727,7 +789,6 @@ CHIP_ERROR DeviceCommissioner::Init(NodeId localDeviceId, CommissionerInitParams
     }
     mPairingDelegate = params.pairingDelegate;
 
-    mOperationalCredentialsDelegate = params.operationalCredentialsDelegate;
     return CHIP_NO_ERROR;
 }
 
@@ -769,13 +830,13 @@ CHIP_ERROR DeviceCommissioner::PairDevice(NodeId remoteDeviceId, RendezvousParam
     if (params.GetPeerAddress().GetTransportType() == Transport::Type::kBle ||
         params.GetPeerAddress().GetTransportType() == Transport::Type::kUndefined)
     {
-#if CONFIG_DEVICE_LAYER && CONFIG_NETWORK_LAYER_BLE
+#if CONFIG_NETWORK_LAYER_BLE
         if (!params.HasBleLayer())
         {
             params.SetPeerAddress(Transport::PeerAddress::BLE());
         }
         peerAddress = Transport::PeerAddress::BLE();
-#endif // CONFIG_DEVICE_LAYER && CONFIG_NETWORK_LAYER_BLE
+#endif // CONFIG_NETWORK_LAYER_BLE
     }
     else if (params.GetPeerAddress().GetTransportType() == Transport::Type::kTcp ||
              params.GetPeerAddress().GetTransportType() == Transport::Type::kUdp)
@@ -1024,87 +1085,279 @@ void DeviceCommissioner::OnSessionEstablished()
     ChipLogDetail(Controller, "Remote device completed SPAKE2+ handshake\n");
 
     // TODO: Add code to receive OpCSR from the device, and process the signing request
-    err = SendOperationalCertificateSigningRequestCommand(device->GetDeviceId());
-    if (err != CHIP_NO_ERROR)
+    // For IP rendezvous, this is sent as part of the state machine.
+#if CONFIG_USE_CLUSTERS_FOR_IP_COMMISSIONING
+    bool sendOperationalCertsImmediately = !mIsIPRendezvous;
+#else
+    bool sendOperationalCertsImmediately = true;
+#endif
+
+    if (sendOperationalCertsImmediately)
     {
-        ChipLogError(Controller, "Failed in sending opcsr request command to the device: err %s", ErrorStr(err));
-        OnSessionEstablishmentError(err);
-        return;
+        err = SendOperationalCertificateSigningRequestCommand(device);
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogError(Ble, "Failed in sending opcsr request command to the device: err %s", ErrorStr(err));
+            OnSessionEstablishmentError(err);
+            return;
+        }
     }
-
-    mPairingSession.ToSerializable(device->GetPairing());
-    mSystemLayer->CancelTimer(OnSessionEstablishmentTimeoutCallback, this);
-
-    mPairedDevices.Insert(device->GetDeviceId());
-    mPairedDevicesUpdated = true;
-
-    // Note - This assumes storage is synchronous, the device must be in storage before we can cleanup
-    // the rendezvous session and mark pairing success
-    PersistDevice(device);
-    // Also persist the device list at this time
-    // This makes sure that a newly added device is immediately available
-    PersistDeviceList();
-
-    if (mPairingDelegate != nullptr)
+    else
     {
-        mPairingDelegate->OnStatusUpdate(DevicePairingDelegate::SecurePairingSuccess);
+        AdvanceCommissioningStage(CHIP_NO_ERROR);
     }
-
-    RendezvousCleanup(CHIP_NO_ERROR);
 }
 
-CHIP_ERROR DeviceCommissioner::SendOperationalCertificateSigningRequestCommand(NodeId remoteDeviceId)
+CHIP_ERROR DeviceCommissioner::SendOperationalCertificateSigningRequestCommand(Device * device)
 {
-    // TODO: Call OperationalCredentials cluster API to send command
+    ChipLogDetail(Controller, "Sending OpCSR request to %p device", device);
+    VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    chip::Controller::OperationalCredentialsCluster cluster;
+    cluster.Associate(device, 0);
+
+    Callback::Cancelable * successCallback = mOpCSRResponseCallback.Cancel();
+    Callback::Cancelable * failureCallback = mOnCSRFailureCallback.Cancel();
+
+    uint8_t CSRNonce[kOpCSRNonceLength];
+    ReturnErrorOnFailure(Crypto::DRBG_get_bytes(CSRNonce, sizeof(CSRNonce)));
+
+    ReturnErrorOnFailure(cluster.OpCSRRequest(successCallback, failureCallback, ByteSpan(CSRNonce, sizeof(CSRNonce))));
+    ChipLogDetail(Controller, "Sent OpCSR request, waiting for the CSR");
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR DeviceCommissioner::OnOperationalCertificateSigningRequest(NodeId node, const ByteSpan & csr)
+void DeviceCommissioner::OnCSRFailureResponse(void * context, uint8_t status)
+{
+    ChipLogProgress(Controller, "Device failed to receive the CSR request Response: 0x%02x", status);
+    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
+    commissioner->mOpCSRResponseCallback.Cancel();
+    commissioner->mOnCSRFailureCallback.Cancel();
+    // TODO: Map error status to correct error code
+    commissioner->OnSessionEstablishmentError(CHIP_ERROR_INTERNAL);
+}
+
+void DeviceCommissioner::OnOperationalCertificateSigningRequest(void * context, ByteSpan CSR, ByteSpan CSRNonce,
+                                                                ByteSpan VendorReserved1, ByteSpan VendorReserved2,
+                                                                ByteSpan VendorReserved3, ByteSpan Signature)
+{
+    ChipLogProgress(Controller, "Received certificate signing request from the device");
+    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
+
+    commissioner->mOpCSRResponseCallback.Cancel();
+    commissioner->mOnCSRFailureCallback.Cancel();
+
+    if (commissioner->ProcessOpCSR(CSR, CSRNonce, VendorReserved1, VendorReserved2, VendorReserved3, Signature) != CHIP_NO_ERROR)
+    {
+        // Handle error, and notify session failure to the commissioner application.
+        ChipLogError(Controller, "Failed to process the certificate signing request");
+        // TODO: Map error status to correct error code
+        commissioner->OnSessionEstablishmentError(CHIP_ERROR_INTERNAL);
+    }
+}
+
+CHIP_ERROR DeviceCommissioner::ProcessOpCSR(const ByteSpan & CSR, const ByteSpan & CSRNonce, const ByteSpan & VendorReserved1,
+                                            const ByteSpan & VendorReserved2, const ByteSpan & VendorReserved3,
+                                            const ByteSpan & Signature)
 {
     VerifyOrReturnError(mState == State::Initialized, CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrReturnError(mDeviceBeingPaired < kNumMaxActiveDevices, CHIP_ERROR_INCORRECT_STATE);
+
+    Device * device = &mActiveDevices[mDeviceBeingPaired];
 
     chip::Platform::ScopedMemoryBuffer<uint8_t> opCert;
     ReturnErrorCodeIf(!opCert.Alloc(kMaxCHIPOpCertLength), CHIP_ERROR_NO_MEMORY);
 
+    // TODO: Validate CSR Nonce and signature
+
     uint32_t opCertLen = 0;
+    ChipLogProgress(Controller, "Generating operational certificate for device %llx", device->GetDeviceId());
     ReturnErrorOnFailure(mOperationalCredentialsDelegate->GenerateNodeOperationalCertificate(
-        PeerId().SetNodeId(node), csr, 0, opCert.Get(), kMaxCHIPOpCertLength, opCertLen));
+        PeerId().SetNodeId(device->GetDeviceId()), CSR, 1, opCert.Get(), kMaxCHIPOpCertLength, opCertLen));
 
-    chip::Platform::ScopedMemoryBuffer<uint8_t> signingCert;
-    ReturnErrorCodeIf(!signingCert.Alloc(kMaxCHIPOpCertLength), CHIP_ERROR_NO_MEMORY);
+    chip::Platform::ScopedMemoryBuffer<uint8_t> issuerCert;
+    ReturnErrorCodeIf(!issuerCert.Alloc(kMaxCHIPOpCertLength), CHIP_ERROR_NO_MEMORY);
 
-    uint32_t signingCertLen = 0;
+    ChipLogProgress(Controller, "Getting intermediate CA certificate from the issuer");
+    uint32_t issuerCertLen = 0;
     CHIP_ERROR err =
-        mOperationalCredentialsDelegate->GetIntermediateCACertificate(0, signingCert.Get(), kMaxCHIPOpCertLength, signingCertLen);
+        mOperationalCredentialsDelegate->GetIntermediateCACertificate(0, issuerCert.Get(), kMaxCHIPOpCertLength, issuerCertLen);
+    ChipLogProgress(Controller, "GetIntermediateCACertificate returned %d", err);
     if (err == CHIP_ERROR_INTERMEDIATE_CA_NOT_REQUIRED)
     {
         // This implies that the commissioner application uses root CA to sign the operational
         // certificates, and an intermediate CA is not needed. It's not an error condition, so
         // let's just send operational certificate and root CA certificate to the device.
-        err            = CHIP_NO_ERROR;
-        signingCertLen = 0;
+        err           = CHIP_NO_ERROR;
+        issuerCertLen = 0;
+        ChipLogProgress(Controller, "Intermediate CA is not needed");
     }
     ReturnErrorOnFailure(err);
 
+    chip::Platform::ScopedMemoryBuffer<uint8_t> chipCert;
+
+    ReturnErrorCodeIf(!chipCert.Alloc(kMaxCHIPOpCertLength), CHIP_ERROR_NO_MEMORY);
+
+    ReturnErrorOnFailure(ConvertX509CertToChipCert(opCert.Get(), opCertLen, chipCert.Get(), kMaxCHIPOpCertLength, opCertLen));
+
+    // TODO - convert ICA cert to ChipCert format and send it to the device.
+
+    ChipLogProgress(Controller, "Sending operational certificate to the device. Op Cert Len %d, ICA Cert Len %d", opCertLen,
+                    issuerCertLen);
     ReturnErrorOnFailure(
-        SendOperationalCertificate(node, ByteSpan(opCert.Get(), opCertLen), ByteSpan(signingCert.Get(), signingCertLen)));
+        SendOperationalCertificate(device, ByteSpan(chipCert.Get(), opCertLen), ByteSpan(issuerCert.Get(), issuerCertLen)));
 
-    ReturnErrorOnFailure(
-        mOperationalCredentialsDelegate->GetRootCACertificate(0, signingCert.Get(), kMaxCHIPOpCertLength, signingCertLen));
-
-    return SendTrustedRootCertificate(node, ByteSpan(signingCert.Get(), signingCertLen));
-}
-
-CHIP_ERROR DeviceCommissioner::SendOperationalCertificate(NodeId remoteDeviceId, const ByteSpan & opCertBuf,
-                                                          const ByteSpan & icaCertBuf)
-{
-    // TODO: Call OperationalCredentials cluster API to add operational credentials on the device
     return CHIP_NO_ERROR;
 }
 
-CHIP_ERROR DeviceCommissioner::SendTrustedRootCertificate(NodeId remoteDeviceId, const ByteSpan & certBuf)
+CHIP_ERROR DeviceCommissioner::SendOperationalCertificate(Device * device, const ByteSpan & opCertBuf, const ByteSpan & icaCertBuf)
 {
-    // TODO: Call TrustedRootCertificate cluster API to add root certificate on the device
+    VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    chip::Controller::OperationalCredentialsCluster cluster;
+    cluster.Associate(device, 0);
+
+    Callback::Cancelable * successCallback = mOpCertResponseCallback.Cancel();
+    Callback::Cancelable * failureCallback = mOnCertFailureCallback.Cancel();
+
+    ReturnErrorOnFailure(
+        cluster.AddOpCert(successCallback, failureCallback, opCertBuf, icaCertBuf, ByteSpan(nullptr, 0), mLocalDeviceId, 0));
+
+    ChipLogProgress(Controller, "Sent operational certificate to the device");
+
+    return CHIP_NO_ERROR;
+}
+
+void DeviceCommissioner::OnAddOpCertFailureResponse(void * context, uint8_t status)
+{
+    ChipLogProgress(Controller, "Device failed to receive the operational certificate Response: 0x%02x", status);
+    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
+    commissioner->mOpCSRResponseCallback.Cancel();
+    commissioner->mOnCertFailureCallback.Cancel();
+    // TODO: Map error status to correct error code
+    commissioner->OnSessionEstablishmentError(CHIP_ERROR_INTERNAL);
+}
+
+void DeviceCommissioner::OnOperationalCertificateAddResponse(void * context, uint8_t StatusCode, uint64_t FabricIndex,
+                                                             uint8_t * DebugText)
+{
+    ChipLogProgress(Controller, "Device confirmed that it has received the operational certificate");
+    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
+
+    CHIP_ERROR err  = CHIP_NO_ERROR;
+    Device * device = nullptr;
+
+    VerifyOrExit(commissioner->mState == State::Initialized, err = CHIP_ERROR_INCORRECT_STATE);
+
+    commissioner->mOpCSRResponseCallback.Cancel();
+    commissioner->mOnCertFailureCallback.Cancel();
+
+    VerifyOrExit(commissioner->mDeviceBeingPaired < kNumMaxActiveDevices, err = CHIP_ERROR_INCORRECT_STATE);
+
+    device = &commissioner->mActiveDevices[commissioner->mDeviceBeingPaired];
+
+    err = commissioner->SendTrustedRootCertificate(device);
+
+exit:
+    if (err != CHIP_NO_ERROR)
+    {
+        commissioner->OnSessionEstablishmentError(err);
+    }
+}
+
+CHIP_ERROR DeviceCommissioner::SendTrustedRootCertificate(Device * device)
+{
+    VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
+    Transport::AdminPairingInfo * admin = mAdmins.FindAdminWithId(mAdminId);
+    VerifyOrReturnError(admin != nullptr, CHIP_ERROR_INCORRECT_STATE);
+
+    uint16_t rootCertLen     = 0;
+    const uint8_t * rootCert = admin->GetTrustedRoot(rootCertLen);
+    VerifyOrReturnError(rootCert != nullptr, CHIP_ERROR_INCORRECT_STATE);
+
+    ChipLogProgress(Controller, "Sending root certificate to the device");
+
+    chip::Controller::TrustedRootCertificatesCluster cluster;
+    cluster.Associate(device, 0);
+
+    Callback::Cancelable * successCallback = mRootCertResponseCallback.Cancel();
+    Callback::Cancelable * failureCallback = mOnRootCertFailureCallback.Cancel();
+
+    ReturnErrorOnFailure(cluster.AddTrustedRootCertificate(successCallback, failureCallback, ByteSpan(rootCert, rootCertLen)));
+
+    ChipLogProgress(Controller, "Sent root certificate to the device");
+
+    return CHIP_NO_ERROR;
+}
+
+void DeviceCommissioner::OnRootCertSuccessResponse(void * context)
+{
+    ChipLogProgress(Controller, "Device confirmed that it has received the root certificate");
+    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
+
+    CHIP_ERROR err  = CHIP_NO_ERROR;
+    Device * device = nullptr;
+
+    VerifyOrExit(commissioner->mState == State::Initialized, err = CHIP_ERROR_INCORRECT_STATE);
+
+    commissioner->mRootCertResponseCallback.Cancel();
+    commissioner->mOnRootCertFailureCallback.Cancel();
+
+    VerifyOrExit(commissioner->mDeviceBeingPaired < kNumMaxActiveDevices, err = CHIP_ERROR_INCORRECT_STATE);
+
+    device = &commissioner->mActiveDevices[commissioner->mDeviceBeingPaired];
+
+    err = commissioner->OnOperationalCredentialsProvisioningCompletion(device);
+    SuccessOrExit(err);
+
+exit:
+    if (err != CHIP_NO_ERROR)
+    {
+        commissioner->OnSessionEstablishmentError(err);
+    }
+}
+
+void DeviceCommissioner::OnRootCertFailureResponse(void * context, uint8_t status)
+{
+    ChipLogProgress(Controller, "Device failed to receive the root certificate Response: 0x%02x", status);
+    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
+    commissioner->mRootCertResponseCallback.Cancel();
+    commissioner->mOnRootCertFailureCallback.Cancel();
+    // TODO: Map error status to correct error code
+    commissioner->OnSessionEstablishmentError(CHIP_ERROR_INTERNAL);
+}
+
+CHIP_ERROR DeviceCommissioner::OnOperationalCredentialsProvisioningCompletion(Device * device)
+{
+    ChipLogProgress(Controller, "Operational credentials provisioned on device %p", device);
+    VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+
+#if CONFIG_USE_CLUSTERS_FOR_IP_COMMISSIONING
+    if (mIsIPRendezvous)
+    {
+        AdvanceCommissioningStage(CHIP_NO_ERROR);
+    }
+    else
+#endif
+    {
+        mPairingSession.ToSerializable(device->GetPairing());
+        mSystemLayer->CancelTimer(OnSessionEstablishmentTimeoutCallback, this);
+
+        mPairedDevices.Insert(device->GetDeviceId());
+        mPairedDevicesUpdated = true;
+
+        // Note - This assumes storage is synchronous, the device must be in storage before we can cleanup
+        // the rendezvous session and mark pairing success
+        PersistDevice(device);
+        // Also persist the device list at this time
+        // This makes sure that a newly added device is immediately available
+        PersistDeviceList();
+        if (mPairingDelegate != nullptr)
+        {
+            mPairingDelegate->OnStatusUpdate(DevicePairingDelegate::SecurePairingSuccess);
+        }
+        RendezvousCleanup(CHIP_NO_ERROR);
+    }
+
     return CHIP_NO_ERROR;
 }
 
@@ -1112,29 +1365,13 @@ void DeviceCommissioner::PersistDeviceList()
 {
     if (mStorageDelegate != nullptr && mPairedDevicesUpdated && mState == State::Initialized)
     {
-        constexpr uint16_t size = CHIP_MAX_SERIALIZED_SIZE_U64(kNumMaxPairedDevices);
-        char * serialized       = static_cast<char *>(chip::Platform::MemoryAlloc(size));
-        uint16_t requiredSize   = size;
-        if (serialized != nullptr)
-        {
-            const char * value = mPairedDevices.SerializeBase64(serialized, requiredSize);
-            if (value != nullptr && requiredSize <= size)
-            {
-                // TODO: no need to base64 again the value
-                PERSISTENT_KEY_OP(static_cast<uint64_t>(0), kPairedDeviceListKeyPrefix, key,
-                                  mStorageDelegate->SyncSetKeyValue(key, value, requiredSize));
-                mPairedDevicesUpdated = false;
-            }
-            chip::Platform::MemoryFree(serialized);
-        }
-    }
-}
-
-void DeviceCommissioner::PersistNextKeyId()
-{
-    if (mStorageDelegate != nullptr && mState == State::Initialized)
-    {
-        mStorageDelegate->SyncSetKeyValue(kNextAvailableKeyID, &mNextKeyId, sizeof(mNextKeyId));
+        mPairedDevices.Serialize([&](ByteSpan data) -> CHIP_ERROR {
+            VerifyOrReturnError(data.size() <= UINT16_MAX, CHIP_ERROR_INVALID_ARGUMENT);
+            PERSISTENT_KEY_OP(static_cast<uint64_t>(0), kPairedDeviceListKeyPrefix, key,
+                              mStorageDelegate->SyncSetKeyValue(key, data.data(), static_cast<uint16_t>(data.size())));
+            mPairedDevicesUpdated = false;
+            return CHIP_NO_ERROR;
+        });
     }
 }
 
@@ -1189,7 +1426,7 @@ CHIP_ERROR DeviceCommissioner::DiscoverCommissioningLongDiscriminator(uint16_t l
     {
         mCommissionableNodes[i].Reset();
     }
-    Mdns::CommissionableNodeFilter filter(Mdns::CommissionableNodeFilterType::kLong, long_discriminator);
+    Mdns::DiscoveryFilter filter(Mdns::DiscoveryFilterType::kLong, long_discriminator);
     return Mdns::Resolver::Instance().FindCommissionableNodes(filter);
 }
 
@@ -1258,6 +1495,253 @@ CHIP_ERROR DeviceControllerInteractionModelDelegate::CommandResponseProcessed(co
     IMDefaultResponseCallback(apCommandSender, EMBER_ZCL_STATUS_SUCCESS);
 
     return CHIP_NO_ERROR;
+}
+void BasicSuccess(void * context, uint16_t val)
+{
+    ChipLogProgress(Controller, "Received success response 0x%x\n", val);
+    DeviceCommissioner * commissioner = static_cast<DeviceCommissioner *>(context);
+    commissioner->AdvanceCommissioningStage(CHIP_NO_ERROR);
+}
+
+void BasicFailure(void * context, uint8_t status)
+{
+    ChipLogProgress(Controller, "Received failure response %d\n", (int) status);
+    DeviceCommissioner * commissioner = static_cast<DeviceCommissioner *>(context);
+    commissioner->OnSessionEstablishmentError(static_cast<CHIP_ERROR>(status));
+}
+
+#if CHIP_DEVICE_CONFIG_ENABLE_MDNS
+void DeviceCommissioner::OnNodeIdResolved(const chip::Mdns::ResolvedNodeData & nodeData)
+{
+    Device * device = nullptr;
+    if (mDeviceBeingPaired < kNumMaxActiveDevices)
+    {
+        device = &mActiveDevices[mDeviceBeingPaired];
+        if (device->GetDeviceId() == nodeData.mPeerId.GetNodeId() && mCommissioningStage == CommissioningStage::kFindOperational)
+        {
+            AdvanceCommissioningStage(CHIP_NO_ERROR);
+        }
+    }
+    DeviceController::OnNodeIdResolved(nodeData);
+}
+
+void DeviceCommissioner::OnNodeIdResolutionFailed(const chip::PeerId & peer, CHIP_ERROR error)
+{
+    Device * device = nullptr;
+    if (mDeviceBeingPaired >= kNumMaxActiveDevices)
+    {
+        return;
+    }
+
+    device = &mActiveDevices[mDeviceBeingPaired];
+    if (device->GetDeviceId() == peer.GetNodeId() && mCommissioningStage == CommissioningStage::kFindOperational)
+    {
+        OnSessionEstablishmentError(error);
+    }
+    DeviceController::OnNodeIdResolutionFailed(peer, error);
+}
+
+#endif
+
+CommissioningStage DeviceCommissioner::GetNextCommissioningStage()
+{
+    switch (mCommissioningStage)
+    {
+    case CommissioningStage::kSecurePairing:
+        return CommissioningStage::kArmFailsafe;
+    case CommissioningStage::kArmFailsafe:
+        return CommissioningStage::kConfigRegulatory;
+    case CommissioningStage::kConfigRegulatory:
+        return CommissioningStage::kCheckCertificates;
+    case CommissioningStage::kCheckCertificates:
+        return CommissioningStage::kNetworkEnable; // TODO : for softAP, this needs to be network setup
+    case CommissioningStage::kNetworkEnable:
+#if CHIP_DEVICE_CONFIG_ENABLE_MDNS
+        return CommissioningStage::kFindOperational; // TODO : once case is working, need to add stages to find and reconnect
+                                                     // here.
+#else
+        return CommissioningStage::kSendComplete;
+#endif
+    case CommissioningStage::kFindOperational:
+        return CommissioningStage::kSendComplete;
+    case CommissioningStage::kSendComplete:
+        return CommissioningStage::kCleanup;
+
+    // Currently unimplemented.
+    case CommissioningStage::kConfigACL:
+    case CommissioningStage::kNetworkSetup:
+    case CommissioningStage::kScanNetworks:
+        return CommissioningStage::kError;
+    // Neither of these have a next stage so return kError;
+    case CommissioningStage::kCleanup:
+    case CommissioningStage::kError:
+        return CommissioningStage::kError;
+    }
+    return CommissioningStage::kError;
+}
+
+void DeviceCommissioner::AdvanceCommissioningStage(CHIP_ERROR err)
+{
+    // For now, we ignore errors coming in from the device since not all commissioning clusters are implemented on the device
+    // side.
+    CommissioningStage nextStage = GetNextCommissioningStage();
+    if (nextStage == CommissioningStage::kError)
+    {
+        return;
+    }
+
+    if (!mIsIPRendezvous)
+    {
+        return;
+    }
+    Device * device = nullptr;
+    if (mDeviceBeingPaired >= kNumMaxActiveDevices)
+    {
+        return;
+    }
+
+    device = &mActiveDevices[mDeviceBeingPaired];
+
+    // TODO(cecille): We probably want something better than this for breadcrumbs.
+    uint64_t breadcrumb = static_cast<uint64_t>(nextStage);
+
+    // TODO(cecille): This should be customized per command.
+    constexpr uint32_t kCommandTimeoutMs = 3000;
+
+    switch (nextStage)
+    {
+    case CommissioningStage::kArmFailsafe: {
+        // TODO(cecille): This is NOT the right way to do this - we should consider attaching an im delegate per command or
+        // something. Per exchange context?
+        ChipLogProgress(Controller, "Arming failsafe");
+        // TODO(cecille): Find a way to enumerate the clusters here.
+        GeneralCommissioningCluster genCom;
+        uint16_t commissioningExpirySeconds = 5;
+        // TODO: should get the endpoint information from the descriptor cluster.
+        genCom.Associate(device, 0);
+        genCom.ArmFailSafe(mSuccess.Cancel(), mFailure.Cancel(), commissioningExpirySeconds, breadcrumb, kCommandTimeoutMs);
+    }
+    break;
+    case CommissioningStage::kConfigRegulatory: {
+        // To set during config phase:
+        // UTC time
+        // time zone
+        // dst offset
+        // Regulatory config
+        // TODO(cecille): Set time as well once the time cluster is implemented
+        // TODO(cecille): Worthwhile to keep this around as part of the class?
+        // TODO(cecille): Where is the country config actually set?
+        ChipLogProgress(Controller, "Setting Regulatory Config");
+        uint32_t regulatoryLocation = EMBER_ZCL_REGULATORY_LOCATION_TYPE_OUTDOOR;
+#if CONFIG_DEVICE_LAYER
+        CHIP_ERROR status = DeviceLayer::ConfigurationMgr().GetRegulatoryLocation(regulatoryLocation);
+#else
+        CHIP_ERROR status = CHIP_ERROR_NOT_IMPLEMENTED;
+#endif
+        if (status != CHIP_NO_ERROR)
+        {
+            ChipLogError(Controller, "Unable to find regulatory location, defaulting to outdoor");
+        }
+
+        static constexpr size_t kMaxCountryCodeSize = 3;
+        char countryCodeStr[kMaxCountryCodeSize]    = "WW";
+        size_t actualCountryCodeSize                = 2;
+
+#if CONFIG_DEVICE_LAYER
+        status = DeviceLayer::ConfigurationMgr().GetCountryCode(countryCodeStr, kMaxCountryCodeSize, actualCountryCodeSize);
+#else
+        status            = CHIP_ERROR_NOT_IMPLEMENTED;
+#endif
+        if (status != CHIP_NO_ERROR)
+        {
+            ChipLogError(Controller, "Unable to find country code, defaulting to WW");
+        }
+        chip::ByteSpan countryCode(reinterpret_cast<uint8_t *>(countryCodeStr), actualCountryCodeSize);
+
+        GeneralCommissioningCluster genCom;
+        genCom.Associate(device, 0);
+        genCom.SetRegulatoryConfig(mSuccess.Cancel(), mFailure.Cancel(), static_cast<uint8_t>(regulatoryLocation), countryCode,
+                                   breadcrumb, kCommandTimeoutMs);
+    }
+    break;
+    case CommissioningStage::kCheckCertificates: {
+        ChipLogProgress(Controller, "Exchanging certificates");
+        // TODO(cecille): Once this is implemented through the clusters, it should be moved to the proper stage and the callback
+        // should advance the commissioning stage
+        CHIP_ERROR status = SendOperationalCertificateSigningRequestCommand(device);
+        if (status != CHIP_NO_ERROR)
+        {
+            ChipLogError(Controller, "Failed in sending opcsr request command to the device: err %s", ErrorStr(err));
+            OnSessionEstablishmentError(err);
+            return;
+        }
+    }
+    break;
+    // TODO: Right now, these stages are not implemented as a separate stage because they are no-ops.
+    // Once these are implemented through the clusters, these should be moved into their separate stages and the callbacks
+    // should advance the commissioning stage.
+    case CommissioningStage::kConfigACL:
+    case CommissioningStage::kNetworkSetup:
+    case CommissioningStage::kScanNetworks:
+        // TODO: Implement
+        break;
+    case CommissioningStage::kNetworkEnable: {
+        ChipLogProgress(Controller, "Enabling Network");
+        // TODO: For ethernet, we actually need a scan stage to get the ethernet netif name. Right now, default to using a magic
+        // value to enable without checks.
+        NetworkCommissioningCluster netCom;
+        // TODO: should get the endpoint information from the descriptor cluster.
+        netCom.Associate(device, 0);
+        // TODO: Once network credential sending is implemented, attempting to set wifi credential on an ethernet only device
+        // will cause an error to be sent back. At that point, we should scan and we shoud see the proper ethernet network ID
+        // returned in the scan results. For now, we use magic.
+        char magicNetworkEnableCode[] = "ETH0";
+        netCom.EnableNetwork(mSuccess.Cancel(), mFailure.Cancel(),
+                             ByteSpan(reinterpret_cast<uint8_t *>(&magicNetworkEnableCode), sizeof(magicNetworkEnableCode)),
+                             breadcrumb, kCommandTimeoutMs);
+    }
+    break;
+    case CommissioningStage::kFindOperational: {
+#if CHIP_DEVICE_CONFIG_ENABLE_MDNS
+        ChipLogProgress(Controller, "Finding node on operational network");
+        Mdns::Resolver::Instance().ResolveNodeId(PeerId().SetFabricId(0).SetNodeId(device->GetDeviceId()),
+                                                 Inet::IPAddressType::kIPAddressType_Any);
+#endif
+    }
+    break;
+    case CommissioningStage::kSendComplete: {
+        // TODO this is actualy not correct - we must reconnect over CASE to send this command.
+        ChipLogProgress(Controller, "Calling commissioning complete");
+        GeneralCommissioningCluster genCom;
+        genCom.Associate(device, 0);
+        genCom.CommissioningComplete(mSuccess.Cancel(), mFailure.Cancel());
+    }
+    break;
+    case CommissioningStage::kCleanup:
+        ChipLogProgress(Controller, "Rendezvous cleanup");
+        mPairingSession.ToSerializable(device->GetPairing());
+        mSystemLayer->CancelTimer(OnSessionEstablishmentTimeoutCallback, this);
+
+        mPairedDevices.Insert(device->GetDeviceId());
+        mPairedDevicesUpdated = true;
+
+        // Note - This assumes storage is synchronous, the device must be in storage before we can cleanup
+        // the rendezvous session and mark pairing success
+        PersistDevice(device);
+        // Also persist the device list at this time
+        // This makes sure that a newly added device is immediately available
+        PersistDeviceList();
+        if (mPairingDelegate != nullptr)
+        {
+            mPairingDelegate->OnStatusUpdate(DevicePairingDelegate::SecurePairingSuccess);
+        }
+        RendezvousCleanup(CHIP_NO_ERROR);
+        break;
+    case CommissioningStage::kSecurePairing:
+    case CommissioningStage::kError:
+        break;
+    }
+    mCommissioningStage = nextStage;
 }
 
 } // namespace Controller

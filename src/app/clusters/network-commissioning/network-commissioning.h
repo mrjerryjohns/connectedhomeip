@@ -19,6 +19,7 @@
 #pragma once
 
 #include <app/Command.h>
+#include <app/common/gen/enums.h>
 #include <lib/core/CHIPCore.h>
 #include <platform/internal/DeviceNetworkProvisioning.h>
 #include <Cluster.h>

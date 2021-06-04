@@ -23,7 +23,6 @@
 
 #include <cstring>
 #include <type_traits>
-
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
 #include <lib/support/Span.h>
@@ -31,6 +30,7 @@
 #include <lib/support/logging/CHIPLogging.h>
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/ConnectivityManager.h>
+#include <platform/internal/DeviceControlServer.h>
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/ThreadStackManager.h>
@@ -273,6 +273,15 @@ CHIP_ERROR NetworkCommissioningServer::EnableNetwork(NetworkCommissioningCluster
 {
     size_t networkSeq;
     CHIP_ERROR err = CHIP_ERROR_INVALID_ARGUMENT;
+	
+    // TODO(cecille): This is very dangerous - need to check against real netif name, ensure no password.
+    constexpr char ethernetNetifMagicCode[] = "ETH0";
+    if (networkID.size() == sizeof(ethernetNetifMagicCode) &&
+        memcmp(networkID.data(), ethernetNetifMagicCode, networkID.size()) == 0)
+    {
+        ChipLogProgress(Zcl, "Wired network enabling requested. Assuming success.");
+        ExitNow(err = CHIP_NO_ERROR);
+    }
 
     for (networkSeq = 0; networkSeq < kMaxNetworks; networkSeq++)
     {
@@ -290,5 +299,9 @@ CHIP_ERROR NetworkCommissioningServer::EnableNetwork(NetworkCommissioningCluster
 
     // TODO: We should encode response command here.
 exit:
+    if (err == CHIP_NO_ERROR)
+    {
+        DeviceLayer::Internal::DeviceControlServer::DeviceControlSvr().EnableNetworkForOperational(networkID);
+    }
     return err;
 }

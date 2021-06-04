@@ -211,7 +211,7 @@ CHIP_ERROR InteractionModelEngine::RegisterServer(ClusterServer *apClusterServer
 }
 
 void InteractionModelEngine::OnUnknownMsgType(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                                              const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload)
+                                              const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -235,7 +235,7 @@ void InteractionModelEngine::OnUnknownMsgType(Messaging::ExchangeContext * apExc
 
 void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext * apExchangeContext,
                                                     const PacketHeader & aPacketHeader, const PayloadHeader & aPayloadHeader,
-                                                    System::PacketBufferHandle aPayload)
+                                                    System::PacketBufferHandle && aPayload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     InvokeInteraction *interaction = nullptr;
@@ -265,7 +265,7 @@ exit:
 }
 
 void InteractionModelEngine::OnReadRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                                           const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload)
+                                           const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -294,7 +294,7 @@ exit:
 }
 
 void InteractionModelEngine::OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                                               const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload)
+                                               const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload)
 {
     if (aPayloadHeader.HasMessageType(Protocols::InteractionModel::MsgType::InvokeCommandRequest))
     {
@@ -319,10 +319,11 @@ void InteractionModelEngine::OnResponseTimeout(Messaging::ExchangeContext * ec)
 // TODO: Remove this after codegen is ready.
 CHIP_ERROR __attribute__((weak)) ReadSingleClusterData(ClusterInfo & aClusterInfo, TLV::TLVWriter & aWriter)
 {
-    ChipLogDetail(
-        DataManagement,
-        "Received Cluster Command: Cluster=%" PRIx16 " NodeId=%" PRIx64 " Endpoint=%" PRIx8 " FieldId=%" PRIx8 " ListIndex=%" PRIx8,
-        aClusterInfo.mClusterId, aClusterInfo.mNodeId, aClusterInfo.mEndpointId, aClusterInfo.mFieldId, aClusterInfo.mListIndex);
+    ChipLogDetail(DataManagement,
+                  "Received Cluster Command: Cluster=%" PRIx16 " NodeId=0x" ChipLogFormatX64 " Endpoint=%" PRIx8 " FieldId=%" PRIx8
+                  " ListIndex=%" PRIx8,
+                  aClusterInfo.mClusterId, ChipLogValueX64(aClusterInfo.mNodeId), aClusterInfo.mEndpointId, aClusterInfo.mFieldId,
+                  aClusterInfo.mListIndex);
     ChipLogError(DataManagement,
                  "Default ReadSingleClusterData is called, this should be replaced by actual dispatched for cluster");
     return CHIP_NO_ERROR;
@@ -331,8 +332,9 @@ CHIP_ERROR __attribute__((weak)) ReadSingleClusterData(ClusterInfo & aClusterInf
 CHIP_ERROR __attribute__((weak)) WriteSingleClusterData(ClusterInfo & aClusterInfo, TLV::TLVReader & aReader)
 {
     ChipLogDetail(DataManagement,
-                  "Received Cluster Attribute: Cluster=%" PRIx16 " NodeId=%" PRIx64 " Endpoint=%" PRIx8 " FieldId=%" PRIx8,
-                  " ListIndex=%" PRIx8, aClusterInfo.mClusterId, aClusterInfo.mNodeId, aClusterInfo.mEndpointId,
+                  "Received Cluster Attribute: Cluster=%" PRIx16 " NodeId=0x" ChipLogFormatX64 " Endpoint=%" PRIx8
+                  " FieldId=%" PRIx8,
+                  " ListIndex=%" PRIx8, aClusterInfo.mClusterId, ChipLogValueX64(aClusterInfo.mNodeId), aClusterInfo.mEndpointId,
                   aClusterInfo.mFieldId, aClusterInfo.mListIndex);
     ChipLogError(DataManagement,
                  "Default WriteSingleClusterData is called, this should be replaced by actual dispatched for cluster");

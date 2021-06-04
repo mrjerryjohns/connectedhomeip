@@ -50,8 +50,9 @@
 #include <app/reporting/Engine.h>
 #include <app/util/basic-types.h>
 
-#define CHIP_MAX_NUM_COMMAND_HANDLER 1
-#define CHIP_MAX_NUM_COMMAND_SENDER 1
+// TODO: Make number of command handler and command sender configurable
+#define CHIP_MAX_NUM_COMMAND_HANDLER 4
+#define CHIP_MAX_NUM_COMMAND_SENDER 4
 #define CHIP_MAX_NUM_READ_CLIENT 1
 #define CHIP_MAX_NUM_READ_HANDLER 1
 #define CHIP_MAX_REPORTS_IN_FLIGHT 1
@@ -65,8 +66,9 @@ namespace chip {
 namespace app {
 
 constexpr size_t kMaxSecureSduLengthBytes = 1024;
-constexpr uint32_t kImMessageTimeoutMsec  = 3000;
+constexpr uint32_t kImMessageTimeoutMsec  = 6000;
 constexpr FieldId kRootFieldId            = 0;
+
 /**
  * @class InteractionModelEngine
  *
@@ -106,7 +108,7 @@ public:
 
     /**
      *  Retrieve a CommandSender that the SDK consumer can use to send a set of commands.  If the call succeeds,
-     *  the consumer is responsible for calling Shutdown() on the CommandSender once it's done using it.
+     *  see CommandSender documentation for lifetime handling.
      *
      *  @param[out]    apCommandSender    A pointer to the CommandSender object.
      *
@@ -151,11 +153,11 @@ private:
     friend class reporting::Engine;
 
     void OnUnknownMsgType(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                          const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload);
+                          const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
     void OnInvokeCommandRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                                const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload);
+                                const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
     void OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                           const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload);
+                           const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
     void OnResponseTimeout(Messaging::ExchangeContext * ec);
 
     /**
@@ -163,7 +165,7 @@ private:
      * the Read Request are handled entirely within this function.
      */
     void OnReadRequest(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
-                       const PayloadHeader & aPayloadHeader, System::PacketBufferHandle aPayload);
+                       const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload);
 
     Messaging::ExchangeManager * mpExchangeMgr = nullptr;
     InteractionModelDelegate * mpDelegate      = nullptr;
@@ -196,6 +198,18 @@ private:
 
 void DispatchSingleClusterCommand(chip::ClusterId aClusterId, chip::CommandId aCommandId, chip::EndpointId aEndPointId,
                                   chip::TLV::TLVReader & aReader, Command * apCommandObj);
+
+/**
+ *  Check whether the given cluster exists on the given endpoint and supports the given command.
+ *  TODO: The implementation lives in ember-compatibility-functions.cpp, this should be replaced by IM command catalog look up
+ * function after we have a cluster catalog in interaction model engine.
+ *  TODO: The endpoint id on response command (client side command) is unclear, so we don't have a ClientClusterCommandExists
+ * function. (Spec#3258)
+ *
+ *  @retval  True if the endpoint contains the server side of the given cluster and that cluster implements the given command, false
+ * otherwise.
+ */
+bool ServerClusterCommandExists(chip::ClusterId aClusterId, chip::CommandId aCommandId, chip::EndpointId aEndPointId);
 CHIP_ERROR ReadSingleClusterData(ClusterInfo & aClusterInfo, TLV::TLVWriter & aWriter);
 CHIP_ERROR WriteSingleClusterData(ClusterInfo & aClusterInfo, TLV::TLVReader & aReader);
 } // namespace app
