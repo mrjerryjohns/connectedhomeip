@@ -33,6 +33,7 @@
 #include "InetFaultInjection.h"
 #include <inet/InetLayer.h>
 
+#include <platform/PlatformManager.h>
 #include <support/CodeUtils.h>
 #include <support/logging/CHIPLogging.h>
 #include <system/SystemFaultInjection.h>
@@ -257,9 +258,14 @@ INET_ERROR UDPEndPoint::Bind(IPAddressType addrType, const IPAddress & addr, uin
 
         dispatch_source_set_event_handler(mReadableSource, ^{
             SocketEvents res;
+
+            chip::DeviceLayer::PlatformMgr().LockChipStack();
+            
             res.SetRead();
             this->mPendingIO = res;
             this->HandlePendingIO();
+
+            chip::DeviceLayer::PlatformMgr().UnlockChipStack();
         });
         dispatch_resume(mReadableSource);
     }

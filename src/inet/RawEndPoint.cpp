@@ -38,6 +38,8 @@
 #include <support/logging/CHIPLogging.h>
 #include <system/SystemFaultInjection.h>
 
+#include <platform/CHIPDeviceLayer.h>
+
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
 #include <lwip/ip.h>
 #include <lwip/raw.h>
@@ -226,9 +228,12 @@ INET_ERROR RawEndPoint::Bind(IPAddressType addrType, const IPAddress & addr, Int
 
         dispatch_source_set_event_handler(mReadableSource, ^{
             SocketEvents res;
+
+            chip::DeviceLayer::PlatformMgr().LockChipStack();
             res.SetRead();
             this->mPendingIO = res;
             this->HandlePendingIO();
+            chip::DeviceLayer::PlatformMgr().UnlockChipStack();
         });
 
         dispatch_resume(mReadableSource);

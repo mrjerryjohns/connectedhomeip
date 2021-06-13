@@ -173,6 +173,7 @@ public:
 
 #if CHIP_SYSTEM_CONFIG_USE_DISPATCH
     void SetDispatchQueue(dispatch_queue_t dispatchQueue) { mDispatchQueue = dispatchQueue; };
+    void SetLock(pthread_mutex_t &lock);
     dispatch_queue_t GetDispatchQueue() { return mDispatchQueue; };
 #endif // CHIP_SYSTEM_CONFIG_USE_DISPATCH
 

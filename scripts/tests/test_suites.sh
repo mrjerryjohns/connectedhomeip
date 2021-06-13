@@ -19,7 +19,7 @@
 set -e
 
 declare -a test_array="($(find src/app/tests/suites -type f -name "*.yaml" -exec basename {} .yaml \;))"
-declare -i iterations=20
+declare -i iterations=1000
 declare -i background_pid=0
 
 cleanup() {
@@ -45,6 +45,8 @@ done
 echo ""
 echo ""
 
+ulimit -c unlimited || true
+
 declare -a iter_array="($(seq "$iterations"))"
 for j in "${iter_array[@]}"; do
     echo " ===== Iteration $j starting"
@@ -54,6 +56,7 @@ for j in "${iter_array[@]}"; do
         rm -rf /tmp/chip_tool_config.ini
         out/debug/chip-all-clusters-app &
         background_pid=$!
+        sleep 0.1
         echo "          * Pairing to device"
         out/debug/standalone/chip-tool pairing onnetwork 1 20202021 3840 ::1 11097
         echo "          * Starting test run: $i"

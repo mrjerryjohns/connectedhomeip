@@ -42,15 +42,64 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
     err = Internal::PosixConfig::Init();
     SuccessOrExit(err);
 
+    pthread_mutex_init(&mStackLock, nullptr);
+    pthread_mutex_init(&mStateLock, nullptr);
+    pthread_cond_init(&mQueueCond, nullptr);
+
+    //
+    // Create the work-queue before we initialize the CHIP stack, since the call below
+    // might result in PostEvent being invoked, so we need to ensure the queue is ready to be postable to.
+    //
+    if (mWorkQueue == nullptr) {
+        mWorkQueue = dispatch_queue_create(CHIP_CONTROLLER_QUEUE, DISPATCH_QUEUE_SERIAL);
+    }
+
+    //
+    // Prevent actual execution of the queue till a call to StartEventLoop() has been made. Otherwise,
+    // we will end up having race conditions between queue items running, and calls being made to the stack
+    // without locks held.
+    //
+    dispatch_suspend(mWorkQueue);
+
+    mQueueIsActive = true;
+
     // Call _InitChipStack() on the generic implementation base class
     // to finish the initialization process.
     err = Internal::GenericPlatformManagerImpl<PlatformManagerImpl>::_InitChipStack();
     SuccessOrExit(err);
 
-    SystemLayer.SetDispatchQueue(GetWorkQueue());
+    SystemLayer.SetDispatchQueue(mWorkQueue);
 
 exit:
     return err;
+}
+
+CHIP_ERROR PlatformManagerImpl::_StartEventLoopTask()
+{
+    dispatch_resume(mWorkQueue);
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR PlatformManagerImpl::_StopEventLoopTask()
+{
+    dispatch_sync(mWorkQueue, ^{
+        mQueueIsActive = false; 
+    });
+
+    return CHIP_NO_ERROR;
+}
+
+void PlatformManagerImpl::_RunEventLoop()
+{
+    dispatch_resume(mWorkQueue);
+
+    pthread_mutex_lock(&mStateLock);
+
+    while (mQueueIsActive) {
+        pthread_cond_wait(&mQueueCond, &mStateLock);
+    }
+
+    pthread_mutex_unlock(&mStateLock);
 }
 
 CHIP_ERROR PlatformManagerImpl::_Shutdown()
@@ -61,9 +110,16 @@ CHIP_ERROR PlatformManagerImpl::_Shutdown()
 
 void PlatformManagerImpl::_PostEvent(const ChipDeviceEvent * event)
 {
+
     const ChipDeviceEvent eventCopy = *event;
     dispatch_async(mWorkQueue, ^{
+        if (!mQueueIsActive) {
+            return;
+        }
+        
+        pthread_mutex_lock(&mStackLock);
         Impl()->DispatchEvent(&eventCopy);
+        pthread_mutex_unlock(&mStackLock);
     });
 }
 

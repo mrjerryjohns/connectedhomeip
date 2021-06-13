@@ -37,6 +37,7 @@
 #include "InetFaultInjection.h"
 #include <inet/InetLayer.h>
 
+#include <platform/PlatformManager.h>
 #include <support/CodeUtils.h>
 #include <support/SafeInt.h>
 #include <support/logging/CHIPLogging.h>
@@ -256,16 +257,28 @@ INET_ERROR TCPEndPoint::Bind(IPAddressType addrType, const IPAddress & addr, uin
 
         dispatch_source_set_event_handler(mReadableSource, ^{
             SocketEvents events;
+
+            chip::DeviceLayer::PlatformMgr().LockChipStack();
+            
             events.SetRead();
             this->mPendingIO = events;
             this->HandlePendingIO();
+
+            chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+            
         });
 
         dispatch_source_set_event_handler(mWriteableSource, ^{
             SocketEvents events;
+
+            chip::DeviceLayer::PlatformMgr().LockChipStack();
+            
             events.SetWrite();
             this->mPendingIO = events;
             this->HandlePendingIO();
+
+            chip::DeviceLayer::PlatformMgr().UnlockChipStack();
+            
         });
 
         dispatch_resume(mReadableSource);

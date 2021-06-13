@@ -25,6 +25,7 @@
 
 #include <dispatch/dispatch.h>
 #include <platform/internal/GenericPlatformManagerImpl.h>
+#include <pthread.h>
 
 static constexpr const char * const CHIP_CONTROLLER_QUEUE = "com.zigbee.chip.framework.controller.workqueue";
 
@@ -42,15 +43,7 @@ class PlatformManagerImpl final : public PlatformManager, public Internal::Gener
 
 public:
     // ===== Platform-specific members that may be accessed directly by the application.
-
-    dispatch_queue_t GetWorkQueue()
-    {
-        if (mWorkQueue == nullptr)
-        {
-            mWorkQueue = dispatch_queue_create(CHIP_CONTROLLER_QUEUE, DISPATCH_QUEUE_SERIAL);
-        }
-        return mWorkQueue;
-    }
+    dispatch_queue_t GetWorkQueue() { return mWorkQueue; }
 
 private:
     // ===== Methods that implement the PlatformManager abstract interface.
@@ -58,12 +51,12 @@ private:
     CHIP_ERROR _Shutdown();
 
     CHIP_ERROR _StartChipTimer(int64_t aMilliseconds) { return CHIP_ERROR_NOT_IMPLEMENTED; };
-    CHIP_ERROR _StartEventLoopTask() { return CHIP_NO_ERROR; };
-    CHIP_ERROR _StopEventLoopTask() { return CHIP_NO_ERROR; };
-    void _RunEventLoop(){};
-    void _LockChipStack(){};
+    CHIP_ERROR _StartEventLoopTask();
+    CHIP_ERROR _StopEventLoopTask();
+    void _RunEventLoop();
+    void _LockChipStack() { pthread_mutex_lock(&mStackLock); }
     bool _TryLockChipStack() { return false; };
-    void _UnlockChipStack(){};
+    void _UnlockChipStack() { pthread_mutex_unlock(&mStackLock); }
     void _PostEvent(const ChipDeviceEvent * event);
 
 #if defined(CHIP_STACK_LOCK_TRACKING_ENABLED)
@@ -79,6 +72,11 @@ private:
     static PlatformManagerImpl sInstance;
 
     dispatch_queue_t mWorkQueue = nullptr;
+    pthread_mutex_t mStackLock;
+    pthread_mutex_t mStateLock;
+    pthread_cond_t mQueueCond;
+
+    __block bool mQueueIsActive = false;
 
     inline ImplClass * Impl() { return static_cast<PlatformManagerImpl *>(this); }
 };

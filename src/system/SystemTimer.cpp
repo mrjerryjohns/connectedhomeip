@@ -187,7 +187,9 @@ Error Timer::Start(uint32_t aDelayMilliseconds, OnCompleteFunct aOnComplete, voi
             dispatch_source_cancel(timerSource);
             dispatch_release(timerSource);
 
+            //chip::DeviceLayer::PlatformMgr().LockChipStack();
             this->HandleComplete();
+            //chip::DeviceLayer::PlatformMgr().UnlockChipStack();
         });
         dispatch_resume(timerSource);
     }
@@ -224,7 +226,9 @@ Error Timer::ScheduleWork(OnCompleteFunct aOnComplete, void * aAppState)
     if (dispatchQueue)
     {
         dispatch_async(dispatchQueue, ^{
+            //chip::DeviceLayer::PlatformMgr().LockChipStack();
             this->HandleComplete();
+            //chip::DeviceLayer::PlatformMgr().UnlockChipStack();
         });
     }
     else
