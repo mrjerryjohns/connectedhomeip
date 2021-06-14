@@ -47,7 +47,7 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
     pthread_cond_init(&mQueueCond, nullptr);
 
     //
-    // Create the work-queue before we initialize the CHIP stack, since the call below
+    // Create the work-queue before we initialize the CHIP stack, since that
     // might result in PostEvent being invoked, so we need to ensure the queue is ready to be postable to.
     //
     if (mWorkQueue == nullptr) {
@@ -55,9 +55,9 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack()
     }
 
     //
-    // Prevent actual execution of the queue till a call to StartEventLoop() has been made. Otherwise,
-    // we will end up having race conditions between queue items running, and calls being made to the stack
-    // without locks held.
+    // Prevent actual execution of the queue till a call to either StartEventLoopTask() or RunEventLoop() has been made. 
+    // Otherwise, we will end up having race conditions between queue items running, and calls being made to the stack
+    // without locks held from outside of the dispatch queue.
     //
     dispatch_suspend(mWorkQueue);
 
@@ -76,15 +76,33 @@ exit:
 
 CHIP_ERROR PlatformManagerImpl::_StartEventLoopTask()
 {
+    //
+    // There is no separate task that needs to be created. With our already
+    // created work queue, just resume the dispatch on it.
+    //
     dispatch_resume(mWorkQueue);
     return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR PlatformManagerImpl::_StopEventLoopTask()
 {
+    //
+    // GCD provides a mechanism to suspend un-executed work items in the dispatch queue,
+    // but doesn't provide a synchronous way to block till a currently executing block has
+    // completed. This logic below makes that possible by synchronously dispatching a simple
+    // block that sets the mQueueIsActive to false (causing newer tasks that were queued up
+    // after to just be dropped on the ground after), and waiting till setting that variable is
+    // complete.
+    //
+  
     dispatch_sync(mWorkQueue, ^{
         mQueueIsActive = false; 
     });
+
+    //
+    // Wake up anyone blocked at RunEventLoop
+    //
+    pthread_cond_signal(&mQueueCond);
 
     return CHIP_NO_ERROR;
 }
@@ -95,6 +113,10 @@ void PlatformManagerImpl::_RunEventLoop()
 
     pthread_mutex_lock(&mStateLock);
 
+    //
+    // GCD doesn't provide a method that allows us to 'block' on a dispatch queue
+    // so we need to resort to pthread mutex + cond var to achieve the same effect.
+    //
     while (mQueueIsActive) {
         pthread_cond_wait(&mQueueCond, &mStateLock);
     }
@@ -113,10 +135,14 @@ void PlatformManagerImpl::_PostEvent(const ChipDeviceEvent * event)
 
     const ChipDeviceEvent eventCopy = *event;
     dispatch_async(mWorkQueue, ^{
+        //
+        // If the queue isn't active, drop this on the floor since the stack is in the process,
+        // or already has, shutdown
+        //
         if (!mQueueIsActive) {
             return;
         }
-        
+       
         pthread_mutex_lock(&mStackLock);
         Impl()->DispatchEvent(&eventCopy);
         pthread_mutex_unlock(&mStackLock);
