@@ -35,19 +35,18 @@
 #include <support/logging/CHIPLogging.h>
 #include <system/SystemPacketBuffer.h>
 #include <system/TLVPacketBufferBackingStore.h>
-
+#include "InvokeInteraction.h"
 #include <app/MessageDef/CommandDataElement.h>
 #include <app/MessageDef/CommandList.h>
 #include <app/MessageDef/InvokeCommand.h>
 
-#include "InvokeInteraction.h"
 #include "app/util/basic-types.h"
 #include <functional>
 
 namespace chip {
 namespace app {
 
-class ClusterServer : public InvokeInteraction::CommandHandler
+class ClusterServer : public InvokeResponder::CommandHandler
 {
 public:
     ClusterServer(ClusterDescriptor *apClusterDescriptor);
@@ -63,6 +62,7 @@ private:
     chip::EndpointId mEndpoint;
 };
 
+#if 0
 class ClusterClient : public InvokeInteraction::CommandHandler
 {
 public:
@@ -93,6 +93,7 @@ private:
     NodeId mRemoteNode;
     Transport::AdminId mRemoteAdmin;
 };
+#endif
 
 } // namespace app
 } // namespace chip

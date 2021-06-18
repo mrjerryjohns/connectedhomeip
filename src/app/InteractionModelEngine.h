@@ -32,7 +32,6 @@
 #include <messaging/Flags.h>
 #include <protocols/Protocols.h>
 #include <protocols/interaction_model/Constants.h>
-#include "InvokeInteraction.h"
 #include "Cluster.h"
 #include <support/CodeUtils.h>
 #include <support/DLLUtil.h>
@@ -138,10 +137,6 @@ public:
     uint16_t GetReadClientArrayIndex(const ReadClient * const apReadClient) const;
 
 
-    InvokeInteraction* NewInvokeInteraction();
-
-
-    CHIP_ERROR RegisterClient(ClusterClient *apClient);
     CHIP_ERROR RegisterServer(ClusterServer *apServer);
 
     reporting::Engine & GetReportingEngine() { return mReportingEngine; }
@@ -175,21 +170,18 @@ private:
     ReadHandler mReadHandlers[CHIP_MAX_NUM_READ_HANDLER];
     reporting::Engine mReportingEngine;
 
-    static void FreeReleasedInvokeObjects(intptr_t a);
+    static void FreeReleasedInvokeResponderObjects(intptr_t a);
 
 private:
-    friend class InvokeInteraction;
+    friend class InvokeResponder;
 
 private:
-    BitMapObjectPool<ClusterClient*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterClients;
     BitMapObjectPool<ClusterServer*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterServers;
-    BitMapObjectPool<InvokeInteraction, CHIP_MAX_NUM_INVOKE_INTERACTIONS> mInvokeInteractions;
+    BitMapObjectPool<InvokeResponder, CHIP_MAX_NUM_INVOKE_INTERACTIONS> mInvokeResponders;
 
-    InvokeInteraction *NewInvokeInteraction(ClusterClient *aClient);
     friend class ClusterClient;
     friend class TestInvokeInteraction;
 
-    auto GetClusterClientSet() -> decltype(mClusterClients) & { return mClusterClients; }
     auto GetClusterServerSet() -> decltype(mClusterServers) & { return mClusterServers; }
 	
 	ClusterInfo mClusterInfoPool[IM_SERVER_MAX_NUM_PATH_GROUPS];

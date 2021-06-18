@@ -140,63 +140,17 @@ CHIP_ERROR InteractionModelEngine::NewReadClient(ReadClient ** const apReadClien
     return err;
 }
 
-void InteractionModelEngine::FreeReleasedInvokeObjects(intptr_t a)
+void InteractionModelEngine::FreeReleasedInvokeResponderObjects(intptr_t a)
 {
     InteractionModelEngine *_this = reinterpret_cast<InteractionModelEngine *>(a);
 
-    _this->mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
-        if (apInteraction->mState == InvokeInteraction::kStateReleased) {
-            _this->mInvokeInteractions.ReleaseObject(apInteraction);
+    _this->mInvokeResponders.ForEachActiveObject([&](InvokeResponder *apInteraction) {
+        if (apInteraction->mState == InvokeResponder::kStateReleased) {
+            _this->mInvokeResponders.ReleaseObject(apInteraction);
         }
 
         return true;
     });
-}
-
-InvokeInteraction* InteractionModelEngine::NewInvokeInteraction(ClusterClient *aClient)
-{
-    InvokeInteraction *pInteraction = nullptr;
-    CHIP_ERROR err = CHIP_NO_ERROR;
-
-    if (aClient) {
-        mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
-            if (apInteraction->GetExchangeContext()->GetSecureSession().GetAdminId() == aClient->GetRemoteAdmin() &&
-                apInteraction->GetExchangeContext()->GetSecureSession().GetPeerNodeId() == aClient->GetRemoteNodeId()) {
-                pInteraction = apInteraction;
-                return false;
-            }
-
-            return true;
-        });
-    }
-
-    if (!pInteraction) {
-        Messaging::ExchangeContext *ec;
-
-        pInteraction = mInvokeInteractions.CreateObject();
-        VerifyOrExit(pInteraction, err = CHIP_ERROR_NO_MEMORY);
-
-        // Allocate an exchange
-        ec = mpExchangeMgr->NewContext({aClient->GetRemoteNodeId(), 0, aClient->GetRemoteAdmin()}, this);
-        VerifyOrExit(ec != nullptr, err = CHIP_ERROR_NO_MEMORY);
-
-        err = pInteraction->Init(ec);
-        SuccessOrExit(err);
-    }
-
-exit:
-    return pInteraction;
-}
-
-CHIP_ERROR InteractionModelEngine::RegisterClient(ClusterClient *apClusterClient)
-{
-    ClusterClient **client = mClusterClients.CreateObject();
-    if (client == nullptr) {
-        return CHIP_ERROR_NO_MEMORY;
-    }
-
-    *client = apClusterClient;
-    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR InteractionModelEngine::RegisterServer(ClusterServer *apClusterServer)
@@ -238,27 +192,13 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
                                                     System::PacketBufferHandle && aPayload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    InvokeInteraction *interaction = nullptr;
+    InvokeResponder *responder = nullptr;
     
-    if (mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
-        if (apInteraction->GetExchangeContext() == apExchangeContext) {
-            interaction = apInteraction;
-            return false;        
-        }
+    responder = mInvokeResponders.CreateObject();
+    assert(responder != nullptr);
 
-        return true;
-    })) {
-        interaction = mInvokeInteractions.CreateObject();
-        assert(interaction != nullptr);
-
-        err = interaction->Init(apExchangeContext, true);
-        SuccessOrExit(err);
-    }
-
-    err = interaction->HandleMessage(std::move(aPayload));
+    err = responder->Init(apExchangeContext, std::move(aPayload));
     SuccessOrExit(err);
-
-    interaction->ReleaseOnCompletion();
 
 exit:
     ChipLogFunctError(err);

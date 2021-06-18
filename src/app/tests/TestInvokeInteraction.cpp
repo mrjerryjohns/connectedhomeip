@@ -59,14 +59,14 @@ static Transport::AdminId gAdminId = 0;
 namespace app {
 
 nlTestSuite *gpSuite = nullptr;
-InvokeInteraction *gServerInvoke = nullptr;
+InvokeResponder *gServerInvoke = nullptr;
 Messaging::ExchangeContext *gClientEc = nullptr;
 
 class TestServerCluster : public ClusterServer
 {
 public:
     TestServerCluster();
-    CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload);
+    CHIP_ERROR HandleRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload);
 
     bool mGotCommandA = false;
 };
@@ -77,7 +77,7 @@ TestServerCluster::TestServerCluster()
 }
 
 CHIP_ERROR 
-TestServerCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
+TestServerCluster::HandleRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::app::Cluster::TestCluster::CommandA::Type req;
@@ -129,7 +129,7 @@ TestServerCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
             }
 
             commandParams.CommandId = chip::app::Cluster::TestCluster::kCommandBId;
-            err = invokeInteraction.AddCommand(commandParams, [&](chip::TLV::TLVWriter &writer, uint64_t tag) {
+            err = invokeInteraction.AddResponse(commandParams, [&](chip::TLV::TLVWriter &writer, uint64_t tag) {
                 return EncodeSchemaElement(resp, writer, tag);
             });
 
@@ -142,23 +142,32 @@ TestServerCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
     return CHIP_NO_ERROR;
 }
 
-class TestClientCluster : public ClusterClient
+class TestInvokeInteraction : public Messaging::ExchangeContextUnitTestDelegate, public InvokeInitiator::CommandHandler
 {
 public:
-    TestClientCluster();
-    CHIP_ERROR SendCommand(InvokeInteraction **apInvoke);
-    CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload);
+    static void TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext);
+    void InterceptMessage(System::PacketBufferHandle buf);
+    int GetNumActiveInvokes();
 
+protected:
+    void HandleDataResponse(CommandParams &commandParams, InvokeInitiator &invokeInteraction, TLV::TLVReader *payload);
+    void HandleStatusResponse(CommandParams &aPath, const Protocols::SecureChannel::GeneralStatusCode aGeneralCode,
+                                    const uint32_t aProtocolId, const uint16_t aProtocolCode) {}
+    void HandleError(CHIP_ERROR aError) {}
+
+    System::PacketBufferHandle mBuf;
     bool mGotCommandB = false;
 };
 
-TestClientCluster::TestClientCluster()
-    : ClusterClient(&chip::app::Cluster::TestCluster::ClusterDescriptor)
+using namespace chip::TLV;
+
+void TestInvokeInteraction::InterceptMessage(System::PacketBufferHandle buf)
 {
+    mBuf = std::move(buf);
 }
 
-CHIP_ERROR
-TestClientCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
+void
+TestInvokeInteraction::HandleDataResponse(CommandParams &commandParams, InvokeInitiator &invokeInteraction, TLV::TLVReader *payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     chip::app::Cluster::TestCluster::CommandB::Type resp;
@@ -198,59 +207,7 @@ TestClientCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams
         mGotCommandB = true;
     }
 
-    return CHIP_NO_ERROR;
-}
-
-CHIP_ERROR TestClientCluster::SendCommand(InvokeInteraction **apInvoke)
-{
-    chip::app::Cluster::TestCluster::CommandA::Type c;
-    InvokeInteraction::CommandParams p = BuildParams();
-    InvokeInteraction *invoke;
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    uint8_t d[5];
-
-    c.a = 10;
-    c.b = 20;
-    c.c.x = 13;
-    c.c.y = 99;
-    c.d = chip::Span{d};
-
-    for (size_t i = 0; i < std::size(d); i++) {
-        d[i] = (uint8_t)i;
-    }
-    
-    p.CommandId = chip::app::Cluster::TestCluster::kCommandAId;
-    p.ExpectsResponses = true;
-
-    invoke = StartInvoke();
-    SuccessOrExit(err);
-
-    gClientEc = invoke->GetExchange();
-
-    *apInvoke = invoke;
-
-    err = invoke->AddCommand(p, [&c](chip::TLV::TLVWriter &writer, uint64_t tag) {
-        return EncodeSchemaElement(c, writer, tag);
-    });
-
-exit:
-    return err;
-}
-
-class TestInvokeInteraction : public Messaging::ExchangeContextUnitTestDelegate
-{
-public:
-    static void TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext);
-    void InterceptMessage(System::PacketBufferHandle buf);
-    int GetNumActiveInvokes();
-    System::PacketBufferHandle mBuf;
-};
-
-using namespace chip::TLV;
-
-void TestInvokeInteraction::InterceptMessage(System::PacketBufferHandle buf)
-{
-    mBuf = std::move(buf);
+    return;
 }
 
 TestInvokeInteraction gTestInvoke;
@@ -259,7 +216,7 @@ int TestInvokeInteraction::GetNumActiveInvokes()
 {
     int count = 0;
 
-    InteractionModelEngine::GetInstance()->mInvokeInteractions.ForEachActiveObject([&](InvokeInteraction *apInteraction) {
+    InteractionModelEngine::GetInstance()->mInvokeResponders.ForEachActiveObject([&](InvokeResponder *apInteraction) {
         count++;
         return true;
     });
@@ -269,29 +226,39 @@ int TestInvokeInteraction::GetNumActiveInvokes()
 
 void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext)
 {
-    InvokeInteraction *invoke;
+    InvokeInitiator invoke;
     CHIP_ERROR err = CHIP_NO_ERROR;
     System::PacketBufferHandle buf;
     Messaging::ExchangeContext *pRxEc;
     PacketHeader packetHdr;
     PayloadHeader payloadHdr;
-
-    TestClientCluster client;
     TestServerCluster server;
-
-    pRxEc = chip::gExchangeManager.NewContext({0, 0, 0}, NULL);
-    NL_TEST_ASSERT(apSuite, pRxEc != nullptr);
 
     err = chip::app::InteractionModelEngine::GetInstance()->RegisterServer(&server);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-    err = chip::app::InteractionModelEngine::GetInstance()->RegisterClient(&client);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
-    
-    err = client.SendCommand(&invoke);
-    NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    invoke.Init(&chip::gExchangeManager, &gTestInvoke, 0, 0, NULL);
 
-    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 1);
+    {
+        chip::app::Cluster::TestCluster::CommandA::Type req;
+        uint8_t d[5];
+
+        req.a = 10;
+        req.b = 20;
+        req.c.x = 13;
+        req.c.y = 99;
+        req.d = chip::Span{d};
+
+        for (size_t i = 0; i < std::size(d); i++) {
+            d[i] = (uint8_t)i;
+        }
+    
+        err = invoke.AddRequestAndSend(CommandParams(req, 0, true), [&req](chip::TLV::TLVWriter &writer, uint64_t tag) {
+            return EncodeSchemaElement(req, writer, tag);
+        });
+
+        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+    }
 
     {
         chip::System::PacketBufferTLVReader reader;
@@ -302,13 +269,17 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
 
     gServerInvoke = nullptr;
 
+    pRxEc = chip::gExchangeManager.NewContext({0, 0, 0}, NULL);
+    NL_TEST_ASSERT(apSuite, pRxEc != nullptr);
+    
     chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(pRxEc, packetHdr, payloadHdr, std::move(buf));
     NL_TEST_ASSERT(apSuite, gServerInvoke != nullptr);
     NL_TEST_ASSERT(apSuite, server.mGotCommandA);
 
-    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 2);
-    chip::app::InteractionModelEngine::GetInstance()->FreeReleasedInvokeObjects((intptr_t)chip::app::InteractionModelEngine::GetInstance());
     NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 1);
+
+    chip::app::InteractionModelEngine::GetInstance()->FreeReleasedInvokeResponderObjects((intptr_t)chip::app::InteractionModelEngine::GetInstance());
+    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 0);
     
     {
         chip::System::PacketBufferTLVReader reader;
@@ -317,13 +288,8 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
         buf = reader.GetBackingStore().Release();
     }
 
-    NL_TEST_ASSERT(apSuite, gClientEc != nullptr);
-
-    chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(gClientEc, packetHdr, payloadHdr, std::move(buf));
-    NL_TEST_ASSERT(apSuite, client.mGotCommandB);
-
-    chip::app::InteractionModelEngine::GetInstance()->FreeReleasedInvokeObjects((intptr_t)chip::app::InteractionModelEngine::GetInstance());
-    NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 0);
+    chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(invoke.GetExchange(), packetHdr, payloadHdr, std::move(buf));
+    NL_TEST_ASSERT(apSuite, gTestInvoke.mGotCommandB);
 }
 
 } // namespace app

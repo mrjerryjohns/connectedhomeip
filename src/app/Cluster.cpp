@@ -36,15 +36,5 @@ ClusterServer::ClusterServer(ClusterDescriptor *apClusterDescriptor)
     mClusterDescriptor = apClusterDescriptor;
 }
 
-ClusterClient::ClusterClient(ClusterDescriptor *apClusterDescriptor)
-{
-    mClusterDescriptor = apClusterDescriptor;
-}
-
-InvokeInteraction* ClusterClient::StartInvoke()
-{
-    return InteractionModelEngine::GetInstance()->NewInvokeInteraction(this);
-}
-
 }
 }

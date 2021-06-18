@@ -99,6 +99,7 @@ extern "C" void vApplicationIdleHook(void)
 
 using namespace chip::app;
 
+#if 0
 class TestServerCluster : public ClusterServer
 {
 public:
@@ -112,6 +113,7 @@ TestServerCluster::TestServerCluster()
 }
 
 TestServerCluster gServerCluster;
+#endif
 
 // ================================================================================
 // Main Code
@@ -120,6 +122,7 @@ int main(void)
 {
     int ret = CHIP_ERROR_MAX;
 
+#if 0
     {
         TLVWriter writer;
         chip::app::Cluster::TestCluster::StructA::Type sa;
@@ -127,6 +130,7 @@ int main(void)
     }
 
     InteractionModelEngine::GetInstance()->RegisterServer(&gServerCluster);
+#endif
 
     init_efrPlatform();
     mbedtls_platform_set_calloc_free(CHIPPlatformMemoryCalloc, CHIPPlatformMemoryFree);

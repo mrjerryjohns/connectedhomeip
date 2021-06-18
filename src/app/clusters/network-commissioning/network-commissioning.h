@@ -40,7 +40,7 @@ public:
     NetworkCommissioningServer();
 
 private:
-    CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload);
+    CHIP_ERROR HandleRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload);
     CHIP_ERROR AddThreadNetwork(chip::app::Cluster::NetworkCommissioningCluster::AddThreadNetworkCommand::Type &request);
     CHIP_ERROR AddWifiNetwork(chip::app::Cluster::NetworkCommissioningCluster::AddWifiNetworkCommand::Type &request);
     CHIP_ERROR EnableNetwork(chip::app::Cluster::NetworkCommissioningCluster::EnableNetworkCommand::Type &request);

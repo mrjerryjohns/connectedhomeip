@@ -65,6 +65,9 @@ namespace chip::app::Cluster::TestCluster {
                 struct empty {};
 
             public:
+                ClusterId_t GetClusterId() { return kClusterId; }
+                uint16_t GetCommandId() { return kCommandAId; }
+
                 uint8_t a;
                 uint8_t b;
                 StructA::Type c;
@@ -80,6 +83,9 @@ namespace chip::app::Cluster::TestCluster {
         
         class Type {
             public:
+                ClusterId_t GetClusterId() { return kClusterId; }
+                uint16_t GetCommandId() { return kCommandBId; }
+                
                 struct empty {};
 
             public:

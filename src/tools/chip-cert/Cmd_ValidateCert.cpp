@@ -148,7 +148,7 @@ bool Cmd_ValidateCert(int argc, char * argv[])
     const ChipCertificateData * certToBeValidated;
     ChipCertificateData * validatedCert;
     ValidationContext context;
-    uint8_t certsBuf[kMaxCerts * kMaxChipCertBufSize];
+    uint8_t certsBuf[(unsigned int)kMaxCerts * (unsigned int)kMaxChipCertBufSize];
 
     context.Reset();
 

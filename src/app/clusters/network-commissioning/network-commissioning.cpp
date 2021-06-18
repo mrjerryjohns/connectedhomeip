@@ -66,7 +66,7 @@ NetworkCommissioningServer::NetworkCommissioningServer()
 {
 }
 
-CHIP_ERROR NetworkCommissioningServer::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
+CHIP_ERROR NetworkCommissioningServer::HandleRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -276,8 +276,8 @@ CHIP_ERROR NetworkCommissioningServer::EnableNetwork(NetworkCommissioningCluster
 	
     // TODO(cecille): This is very dangerous - need to check against real netif name, ensure no password.
     constexpr char ethernetNetifMagicCode[] = "ETH0";
-    if (networkID.size() == sizeof(ethernetNetifMagicCode) &&
-        memcmp(networkID.data(), ethernetNetifMagicCode, networkID.size()) == 0)
+    if (request.NetworkId.size() == sizeof(ethernetNetifMagicCode) &&
+        memcmp(request.NetworkId.data(), ethernetNetifMagicCode, request.NetworkId.size()) == 0)
     {
         ChipLogProgress(Zcl, "Wired network enabling requested. Assuming success.");
         ExitNow(err = CHIP_NO_ERROR);
@@ -301,7 +301,7 @@ CHIP_ERROR NetworkCommissioningServer::EnableNetwork(NetworkCommissioningCluster
 exit:
     if (err == CHIP_NO_ERROR)
     {
-        DeviceLayer::Internal::DeviceControlServer::DeviceControlSvr().EnableNetworkForOperational(networkID);
+        DeviceLayer::Internal::DeviceControlServer::DeviceControlSvr().EnableNetworkForOperational(request.NetworkId);
     }
     return err;
 }
