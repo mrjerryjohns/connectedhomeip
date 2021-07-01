@@ -96,9 +96,11 @@ public:
         virtual CHIP_ERROR HandleRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload) = 0;
         virtual ~CommandHandler() {} 
     };
+
+    CHIP_ERROR AddSRequestAndSend(CommandParams aParams, ISerializable *serializable);
     
     template <typename F>
-    CHIP_ERROR AddResponse(CommandParams &aParams, F f) {
+    CHIP_ERROR AddResponse(CommandParams aParams, F f) {
         CHIP_ERROR err = CHIP_NO_ERROR;
 
         IncrementHoldOffRef();
@@ -164,7 +166,9 @@ public:
 
     CHIP_ERROR Init(Messaging::ExchangeManager *apExchangeMgr, CommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession);
 
-    template <typename F>
+    CHIP_ERROR AddSRequestAndSend(CommandParams aParams, ISerializable *serializable);
+    
+    template <class F>
     CHIP_ERROR AddRequest(CommandParams aParams, F f) {
         CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -190,7 +194,7 @@ exit:
         return err;
     }
 
-    template <typename F>
+    template <class F>
     CHIP_ERROR AddRequestAndSend(CommandParams aParams, F f) {
         ReturnErrorOnFailure(AddRequest(aParams, f));
         return Send();

@@ -3,46 +3,42 @@
 #include <array>
 #include <type_traits>
 #include "TestCluster.h"
+#include <vector>
+#include <string>
 
 namespace chip::app::Cluster::TestCluster {
     extern ClusterDescriptor ClusterDescriptor;
     constexpr ClusterId_t kClusterId = 0x000000001;
 
     namespace StructA {
-        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
-        extern const StructDescriptor<NumImplementedFields> Descriptor;
-        
-        class Type {
+        class Type : public ISerializable {
             public:
-                Type() : x(2) {}
                 uint8_t x;
                 uint8_t y;
-                chip::ByteSpan l = chip::ByteSpan{{0, 1, 2, 3}};
-                chip::Span<char> m;
-                
-                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+                std::vector<uint8_t> l;
+                std::string m;
+
+            public:
+                CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
+                CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
     
     namespace StructB {
-        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
-        extern const StructDescriptor<NumImplementedFields> Descriptor;
-        
-        class Type {
+        class Type : public ISerializable {
             public:
                 uint8_t x;
                 uint8_t y;
                 StructA::Type z;
 
-                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+            public:
+                CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
+                CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
 
     namespace StructC {
-        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
-        extern const StructDescriptor<NumImplementedFields> Descriptor;
-        
-        class Type {
+        class Type : public ISerializable {
             public:
                 struct empty {};
 
@@ -50,13 +46,15 @@ namespace chip::app::Cluster::TestCluster {
                 uint8_t a;
                 uint8_t b;
                 StructA::Type c;
-                chip::Span<uint8_t> d;
-                chip::Span<StructA::Type> e;
+                std::vector<uint8_t> d;
+                std::vector<StructA::Type> e;
 
-                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+                CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
+                CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
 
+#if 0
     namespace CommandA {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;
@@ -100,6 +98,13 @@ namespace chip::app::Cluster::TestCluster {
         };
     }
 
+    class ClientCommandsInterface : public InvokeInitiator::CommandHandler {
+        public:
+            void OnCommandARequest(CommandA::Type &type, InvokeInitiator &initiator) = 0;
+
+
+    };
+
     namespace Attributes {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;
@@ -125,4 +130,5 @@ namespace chip::app::Cluster::TestCluster {
                 static const StructDescriptor<NumImplementedFields> &mDescriptor;
         };
     }
+#endif
 }

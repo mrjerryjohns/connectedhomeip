@@ -47,6 +47,7 @@
 #include <nlunit-test.h>
 
 #include <TestCluster-Gen.h>
+#include <NetworkCommissioningCluster-Gen.h>
 
 namespace chip {
 static System::Layer gSystemLayer;
@@ -253,7 +254,7 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
             d[i] = (uint8_t)i;
         }
     
-        err = invoke.AddRequestAndSend(CommandParams(req, 0, true), [&req](chip::TLV::TLVWriter &writer, uint64_t tag) {
+        err = invoke.AddRequestAndSend(CommandParams(req, 0, true), [&req](auto &writer, auto tag) {
             return EncodeSchemaElement(req, writer, tag);
         });
 

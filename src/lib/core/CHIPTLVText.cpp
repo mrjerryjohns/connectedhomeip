@@ -150,7 +150,7 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             SuccessOrExit(err);
 
             for (uint32_t i = 0; i < sz; i++) {
-                printf("Revision %" PRIu16 "", buf[i]);
+                printf("%" PRIu16 " ", buf[i]);
             }
 
             printf("\n");
@@ -166,7 +166,7 @@ CHIP_ERROR Print(TLV::TLVReader &reader, int tabLevel)
             SuccessOrExit(err);
 
             buf[sz] = '\0';
-            printf("%s\n", buf);
+            printf("\"%s\"\n", buf);
             break;
         }
 

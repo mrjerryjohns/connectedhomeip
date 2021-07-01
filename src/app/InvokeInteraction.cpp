@@ -24,6 +24,8 @@
 #include <platform/CHIPDeviceLayer.h>
 #include "InvokeInteraction.h"
 #include "InteractionModelEngine.h"
+#include "MessageDef/CommandDataElement.h"
+#include "core/CHIPTLVTags.h"
 #include "messaging/ExchangeContext.h"
 #include "system/SystemPacketBuffer.h"
 #include "system/TLVPacketBufferBackingStore.h"
@@ -134,6 +136,30 @@ exit:
     
 exit:
     return err;
+}
+
+CHIP_ERROR InvokeResponder::AddSRequestAndSend(CommandParams aParams, ISerializable *serializable)
+{
+        CHIP_ERROR err = CHIP_NO_ERROR;
+
+        IncrementHoldOffRef();
+
+        err = StartCommandHeader(aParams);
+        SuccessOrExit(err);
+
+        // 
+        // Invoke the passed in closure that will actually write out the command payload if any
+        //
+        err = serializable->Encode(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_StatusElement));
+        SuccessOrExit(err);
+
+        mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
+        SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
+
+        DecrementHoldOffRef();
+
+exit:
+        return err;
 }
 
 CHIP_ERROR InvokeResponder::AddStatusCode(const CommandParams &aParams, 
@@ -441,6 +467,33 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
 exit:
    return; 
 }
+
+CHIP_ERROR InvokeInitiator::AddSRequestAndSend(CommandParams aParams, ISerializable *serializable) 
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    //
+    // Update our accumulated flag that tracks if any command going into this invoke
+    // expects responses
+    //
+    mExpectsResponses |= aParams.ExpectsResponses;
+
+    err = StartCommandHeader(aParams);
+    SuccessOrExit(err);
+
+    // 
+    // Invoke the passed in closure that will actually write out the command payload if any
+    //
+    err = serializable->Encode(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
+    SuccessOrExit(err);
+
+    mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
+    SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
+
+    Send();
+exit:
+    return err;
+}    
 
 CHIP_ERROR InvokeInitiator::Send()
 {
