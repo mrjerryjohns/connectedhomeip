@@ -150,7 +150,7 @@ CHIP_ERROR InvokeResponder::AddSRequestAndSend(CommandParams aParams, ISerializa
         // 
         // Invoke the passed in closure that will actually write out the command payload if any
         //
-        err = serializable->Encode(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_StatusElement));
+        err = serializable->Encode(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
         SuccessOrExit(err);
 
         mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
@@ -316,7 +316,7 @@ void InvokeInitiator::CloseExchange()
     }
 }
 
-CHIP_ERROR InvokeInitiator::Init(Messaging::ExchangeManager *apExchangeMgr, CommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession)
+CHIP_ERROR InvokeInitiator::Init(Messaging::ExchangeManager *apExchangeMgr, ICommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -324,6 +324,7 @@ CHIP_ERROR InvokeInitiator::Init(Messaging::ExchangeManager *apExchangeMgr, Comm
     VerifyOrExit(mpExchangeMgr == nullptr, err = CHIP_ERROR_INCORRECT_STATE);
 
     mpExchangeMgr = apExchangeMgr;
+    mHandler = aHandler;
 
     CloseExchange();
 
@@ -455,7 +456,7 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
 
         SuccessOrExit(err);
 
-        mHandler->HandleDataResponse(params, *this, pReader);
+        mHandler->HandleResponse(params, *this, pReader);
 
         mState = kStateReady;
     }

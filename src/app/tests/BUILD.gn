@@ -76,20 +76,22 @@ chip_test_suite("tests") {
     "TestMessageDef.cpp",
     "TestReadInteraction.cpp",
     "TestReportingEngine.cpp",
-    "TestInvokeInteraction.cpp",
+    #"TestInvokeInteraction.cpp",
+    "TestInvokeInteraction-STL.cpp",
   #  "TestSchemaUtils-STL.cpp",
   ]
 
   cflags = [ "-Wconversion" ]
 
   public_configs = [
-    "${chip_root}/gen-v2/device:includes"
+    #"${chip_root}/gen-v2/device:includes"
+    "${chip_root}/gen-v2/stl:includes"
   ]
 
   public_deps = [
     "${chip_root}/src/app",
-    "${chip_root}/gen-v2/device",
-    #"${chip_root}/gen-v2/stl",
+    #"${chip_root}/gen-v2/device",
+    "${chip_root}/gen-v2/stl",
     "${chip_root}/src/lib/core",
     "${chip_root}/src/protocols",
     "${nlunit_test_root}:nlunit-test",

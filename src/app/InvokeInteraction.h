@@ -48,6 +48,13 @@
 namespace chip {
 namespace app {
 
+struct StatusResponse {
+public:
+    Protocols::SecureChannel::GeneralStatusCode generalCode;
+    uint32_t protocolId;
+    uint16_t protocolCode;
+};
+
 /**
  * Encapsulates arguments to be passed into SendCommand().
  *
@@ -154,17 +161,15 @@ public:
         kStateAwaitingResponse = 1,
     };
 
-    class CommandHandler
+    class ICommandHandler
     {
     public:
-        virtual void HandleDataResponse(CommandParams &commandParams, InvokeInitiator &invokeInteraction, TLV::TLVReader *payload) = 0;
-        virtual void HandleStatusResponse(CommandParams &aPath, const Protocols::SecureChannel::GeneralStatusCode aGeneralCode, 
-                                          const uint32_t aProtocolId, const uint16_t aProtocolCode) {};
-        virtual void HandleError(CHIP_ERROR aError) {};
-        virtual ~CommandHandler() {} 
+        virtual void HandleResponse(CommandParams &commandParams, InvokeInitiator &invokeInteraction, TLV::TLVReader *payload) = 0;
+        virtual void HandleError(CommandParams &aPath, CHIP_ERROR error, StatusResponse *statusResponse) = 0;
+        virtual ~ICommandHandler() {} 
     };
 
-    CHIP_ERROR Init(Messaging::ExchangeManager *apExchangeMgr, CommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession);
+    CHIP_ERROR Init(Messaging::ExchangeManager *apExchangeMgr, ICommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession);
 
     CHIP_ERROR AddSRequestAndSend(CommandParams aParams, ISerializable *serializable);
     
@@ -231,7 +236,7 @@ private:
     State mState = kStateReady;
     chip::System::PacketBufferTLVWriter mWriter;
     app::InvokeCommand::Builder mInvokeCommandBuilder;
-    CommandHandler *mHandler;
+    ICommandHandler *mHandler;
     Messaging::ExchangeManager *mpExchangeMgr;
     Messaging::ExchangeContext *mpExchangeCtx = nullptr;
 };

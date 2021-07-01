@@ -54,15 +54,8 @@ namespace chip::app::Cluster::TestCluster {
         };
     }
 
-#if 0
     namespace CommandA {
-        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
-        extern const StructDescriptor<NumImplementedFields> Descriptor;
-        
-        class Type {
-            public:
-                struct empty {};
-
+        class Type : public ISerializable {
             public:
                 ClusterId_t GetClusterId() { return kClusterId; }
                 uint16_t GetCommandId() { return kCommandAId; }
@@ -70,17 +63,15 @@ namespace chip::app::Cluster::TestCluster {
                 uint8_t a;
                 uint8_t b;
                 StructA::Type c;
-                chip::Span<uint8_t> d;
+                std::vector<uint8_t> d;
 
-                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+                CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
+                CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
     
     namespace CommandB {
-        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
-        extern const StructDescriptor<NumImplementedFields> Descriptor;
-        
-        class Type {
+        class Type : public ISerializable {
             public:
                 ClusterId_t GetClusterId() { return kClusterId; }
                 uint16_t GetCommandId() { return kCommandBId; }
@@ -91,20 +82,15 @@ namespace chip::app::Cluster::TestCluster {
                 uint8_t a;
                 uint8_t b;
                 StructA::Type c;
-                chip::Span<uint8_t> d;
-                chip::Span<StructA::Type> e;
+                std::vector<uint8_t> d;
+                std::vector<StructA::Type> e;
 
-                static const StructDescriptor<NumImplementedFields> &mDescriptor;
+                CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
+                CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
 
-    class ClientCommandsInterface : public InvokeInitiator::CommandHandler {
-        public:
-            void OnCommandARequest(CommandA::Type &type, InvokeInitiator &initiator) = 0;
-
-
-    };
-
+#if 0
     namespace Attributes {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;
