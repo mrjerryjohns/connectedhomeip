@@ -1212,6 +1212,27 @@ CHIP_ERROR DeviceCommissioner::ProcessOpCSR(const ByteSpan & CSR, const ByteSpan
     return CHIP_NO_ERROR;
 }
 
+void OnStatusResponse(app::InvokeInitiator& invokeInitiator, app::CommandParams &params)
+{
+    ChipLogProgress(Controller, "Device confirmed that it has received the operational certificate");
+
+    CHIP_ERROR err  = CHIP_NO_ERROR;
+    Device * device = nullptr;
+
+    VerifyOrExit(mState == State::Initialized, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mDeviceBeingPaired < kNumMaxActiveDevices, err = CHIP_ERROR_INCORRECT_STATE);
+
+    device = &mActiveDevices[mDeviceBeingPaired];
+
+    err = SendTrustedRootCertificate(device);
+
+exit:
+    if (err != CHIP_NO_ERROR)
+    {
+        OnSessionEstablishmentError(err);
+    }
+}
+
 CHIP_ERROR DeviceCommissioner::SendOperationalCertificate(Device * device, const ByteSpan & opCertBuf, const ByteSpan & icaCertBuf)
 {
     VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
@@ -1221,7 +1242,7 @@ CHIP_ERROR DeviceCommissioner::SendOperationalCertificate(Device * device, const
         SecureSessionHandle handle = device->GetSessionHandle();
 
         using namespace std::placeholders;
-        auto onSuccessCallback = std::bind(&DeviceCommissioner::OnOperationalCertificateAddResponse, this, _1, _2, _3);
+        //auto onSuccessCallback = std::bind(&DeviceCommissioner::OnOperationalCertificateAddResponse, this, _1, _2, _3);
 
         ReturnErrorOnFailure(mInvokeInitiator.Init(mExchangeMgr, &mCommandDemuxer, device->GetDeviceId(), 0, &handle));
 
@@ -1230,12 +1251,13 @@ CHIP_ERROR DeviceCommissioner::SendOperationalCertificate(Device * device, const
         req.caseAdminNode = mLocalDeviceId;
         req.adminVendorId = 0;
 
-        ReturnErrorOnFailure(mCommandDemuxer.AddCommand<chip::app::Cluster::OperationalCredentialCluster::OpCertResponse::Type>(&req, app::CommandParams(req, 0), onSuccessCallback));
+        ReturnErrorOnFailure(mCommandDemuxer.AddCommand(&req, app::CommandParams(req, 0), &OnStatusResponse));
         ReturnErrorOnFailure(mInvokeInitiator.Send());
     }
 
     return CHIP_NO_ERROR;
 }
+
 
 void DeviceCommissioner::OnAddOpCertFailureResponse(void * context, uint8_t status)
 {

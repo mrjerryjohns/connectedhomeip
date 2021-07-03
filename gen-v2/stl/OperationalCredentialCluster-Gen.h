@@ -33,6 +33,11 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
                 std::string debugText;
 
                 static ClusterId_t GetClusterId() { return kClusterId; }
+
+                //
+                // TODO: This SHOULD be 0x08, but because the device side sends back a faulty status 
+                // response, we need to switch this back to 0x06.
+                //
                 static uint16_t GetCommandId() { return 0x06; }
                 
             public:

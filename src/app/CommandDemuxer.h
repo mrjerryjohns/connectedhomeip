@@ -74,6 +74,17 @@ public :
         return mInitiator.AddSRequest(params, request);
    }
 
+   CHIP_ERROR AddCommand(ISerializable *request, CommandParams params,
+                  std::function<void (InvokeInitiator&, CommandParams&)> onDataFunc = {}, 
+                  std::function<void (CHIP_ERROR error, StatusResponse *response)> onErrorFunc = {}) {
+        auto onDataClosure = [onDataFunc](InvokeInitiator& initiator, CommandParams &params, TLV::TLVReader *reader) {
+            onDataFunc(initiator, params);
+        };
+
+        mHandlers.push_back({onDataClosure, onErrorFunc, params.ClusterId, params.CommandId});
+        return mInitiator.AddSRequest(params, request);
+   }
+   
    ~CommandDemuxer() {}
 
    void HandleResponse(CommandParams &params, InvokeInitiator &initiator, TLV::TLVReader *payload) final {
