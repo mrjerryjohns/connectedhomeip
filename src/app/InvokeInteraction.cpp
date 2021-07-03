@@ -121,9 +121,11 @@ exit:
                 ChipLogProgress(DataManagement, "Could not find a matching server cluster for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
                                 params.ClusterId, params.EndpointId, params.CommandId);
 
-                err = AddStatusCode(params, Protocols::SecureChannel::GeneralStatusCode::kBadRequest,
-                                    Protocols::SecureChannel::Id, Protocols::SecureChannel::kProtocolCodeGeneralFailure);
-                SuccessOrExit(err);
+                SuccessOrExit((err = CHIP_ERROR_CLUSTER_NOT_FOUND));
+
+                // err = AddStatusCode(params, Protocols::SecureChannel::GeneralStatusCode::kBadRequest,
+                //                     Protocols::SecureChannel::Id, Protocols::SecureChannel::kProtocolCodeGeneralFailure);
+                // SuccessOrExit(err);
             }
         }
     }
@@ -321,7 +323,6 @@ CHIP_ERROR InvokeInitiator::Init(Messaging::ExchangeManager *apExchangeMgr, ICom
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     VerifyOrExit(apExchangeMgr != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
-    VerifyOrExit(mpExchangeMgr == nullptr, err = CHIP_ERROR_INCORRECT_STATE);
 
     mpExchangeMgr = apExchangeMgr;
     mHandler = aHandler;
@@ -402,6 +403,7 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
     TLV::TLVReader commandListReader;
     InvokeCommand::Parser invokeCommandParser;
     CommandList::Parser commandListParser;
+    StatusElement::Parser statusElementParser;
 
     VerifyOrExit(mState == kStateAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
     VerifyOrExit(mHandler != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
@@ -447,16 +449,28 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
         SuccessOrExit(commandPath.GetCommandId(&params.CommandId));
         SuccessOrExit(commandPath.GetEndpointId(&params.EndpointId));
 
-        err = commandElement.GetData(pReader);
+        err = commandElement.GetStatusElement(&statusElementParser);
         if (err == CHIP_END_OF_TLV) {
-            //HasData = false;
-            err = CHIP_NO_ERROR;
-            pReader = NULL;
+            err = commandElement.GetData(pReader);
+            SuccessOrExit(err);
+
+            mHandler->HandleResponse(params, *this, pReader);
+        }
+        else {
+            StatusResponse statusResponse;
+            
+            err = statusElementParser.DecodeStatusElement(&statusResponse.generalCode, &statusResponse.protocolId, &statusResponse.protocolCode);
+            SuccessOrExit(err);
+
+            if (!statusResponse.IsError()) {
+                mHandler->HandleResponse(params, *this, nullptr);
+            }
+            else {
+                mHandler->HandleError(params, CHIP_ERROR_STATUS_REPORT_RECEIVED, &statusResponse);
+            }
         }
 
         SuccessOrExit(err);
-
-        mHandler->HandleResponse(params, *this, pReader);
 
         mState = kStateReady;
     }
@@ -469,7 +483,7 @@ exit:
    return; 
 }
 
-CHIP_ERROR InvokeInitiator::AddSRequestAndSend(CommandParams aParams, ISerializable *serializable) 
+CHIP_ERROR InvokeInitiator::AddSRequest(CommandParams aParams, ISerializable *serializable) 
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -491,10 +505,15 @@ CHIP_ERROR InvokeInitiator::AddSRequestAndSend(CommandParams aParams, ISerializa
     mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
     SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
 
-    Send();
 exit:
     return err;
-}    
+}
+
+CHIP_ERROR InvokeInitiator::AddSRequestAndSend(CommandParams aParams, ISerializable *serializable) 
+{
+    //ReturnErrorOnFailure(AddSRequest(aParams, serializable));
+    return Send();
+}
 
 CHIP_ERROR InvokeInitiator::Send()
 {

@@ -23,6 +23,7 @@ static_library("stl") {
 
   sources = [
     "TestCluster.cpp",
+    "OperationalCredentialCluster.cpp",
     "TestCluster.h",
     "TestCluster-Gen.h",
   ]

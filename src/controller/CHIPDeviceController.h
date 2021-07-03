@@ -47,6 +47,8 @@
 #include <transport/SecureSessionMgr.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/UDP.h>
+#include <app/CommandDemuxer.h>
+#include <OperationalCredentialCluster-Gen.h>
 
 #if CONFIG_DEVICE_LAYER
 #include <platform/CHIPDeviceLayer.h>
@@ -311,6 +313,9 @@ protected:
     Credentials::OperationalCredentialSet mCredentials;
     Credentials::CertificateKeyId mRootKeyId;
 
+    app::InvokeInitiator mInvokeInitiator;
+    app::CommandDemuxer mCommandDemuxer;
+
     uint16_t mNextKeyId = 0;
 
 #if CHIP_DEVICE_CONFIG_ENABLE_MDNS
@@ -545,7 +550,9 @@ private:
     /* Callback when adding operational certs to device results in failure */
     static void OnAddOpCertFailureResponse(void * context, uint8_t status);
     /* Callback when the device confirms that it has added the operational certificates */
-    static void OnOperationalCertificateAddResponse(void * context, uint8_t StatusCode, uint64_t FabricIndex, uint8_t * DebugText);
+
+    void OnOperationalCertificateAddResponse(app::InvokeInitiator& invokeInitiator, app::CommandParams &params, chip::app::Cluster::OperationalCredentialCluster::OpCertResponse::Type *resp);
+
 
     /* Callback when the device confirms that it has added the root certificate */
     static void OnRootCertSuccessResponse(void * context);
@@ -574,7 +581,6 @@ private:
     CommissioningStage GetNextCommissioningStage();
 
     Callback::Callback<OperationalCredentialsClusterOpCSRResponseCallback> mOpCSRResponseCallback;
-    Callback::Callback<OperationalCredentialsClusterOpCertResponseCallback> mOpCertResponseCallback;
     Callback::Callback<DefaultSuccessCallback> mRootCertResponseCallback;
     Callback::Callback<DefaultFailureCallback> mOnCSRFailureCallback;
     Callback::Callback<DefaultFailureCallback> mOnCertFailureCallback;

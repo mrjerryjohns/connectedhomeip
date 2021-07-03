@@ -1787,7 +1787,12 @@ typedef CHIP_CONFIG_ERROR_TYPE CHIP_ERROR;
  * @brief
  *   The commissioner doesn't require an intermediate CA to sign the operational certificates.
  */
-#define CHIP_ERROR_INTERMEDIATE_CA_NOT_REQUIRED                      _CHIP_ERROR(190)
+#define CHIP_ERROR_INTERMEDIATE_CA_NOT_REQUIRED                      _CHIP_ERROR(191)
+
+
+#define CHIP_ERROR_CLUSTER_NOT_FOUND                            _CHIP_ERROR(192)
+
+#define CHIP_ERROR_STATUS_RESPONSE_RECEIVED                     _CHIP_ERROR(193)
 
 /**
  *  @}

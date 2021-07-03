@@ -63,6 +63,8 @@
 #include <support/TimeUtils.h>
 #include <support/logging/CHIPLogging.h>
 
+#include <OperationalCredentialCluster-Gen.h>
+
 #if CONFIG_NETWORK_LAYER_BLE
 #include <ble/BleLayer.h>
 #include <transport/raw/BLE.h>
@@ -105,6 +107,7 @@ constexpr uint32_t kMaxCHIPCSRLength    = 1024;
 constexpr uint32_t kOpCSRNonceLength    = 32;
 
 DeviceController::DeviceController()
+    : mCommandDemuxer(mInvokeInitiator)
 {
     mState                    = State::NotInitialized;
     mSessionMgr               = nullptr;
@@ -768,7 +771,7 @@ ControllerDeviceInitParams DeviceController::GetControllerDeviceInitParams()
 DeviceCommissioner::DeviceCommissioner() :
     mSuccess(BasicSuccess, this), mFailure(BasicFailure, this),
     mOpCSRResponseCallback(OnOperationalCertificateSigningRequest, this),
-    mOpCertResponseCallback(OnOperationalCertificateAddResponse, this), mRootCertResponseCallback(OnRootCertSuccessResponse, this),
+    mRootCertResponseCallback(OnRootCertSuccessResponse, this),
     mOnCSRFailureCallback(OnCSRFailureResponse, this), mOnCertFailureCallback(OnAddOpCertFailureResponse, this),
     mOnRootCertFailureCallback(OnRootCertFailureResponse, this)
 {
@@ -1212,16 +1215,24 @@ CHIP_ERROR DeviceCommissioner::ProcessOpCSR(const ByteSpan & CSR, const ByteSpan
 CHIP_ERROR DeviceCommissioner::SendOperationalCertificate(Device * device, const ByteSpan & opCertBuf, const ByteSpan & icaCertBuf)
 {
     VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
-    chip::Controller::OperationalCredentialsCluster cluster;
-    cluster.Associate(device, 0);
 
-    Callback::Cancelable * successCallback = mOpCertResponseCallback.Cancel();
-    Callback::Cancelable * failureCallback = mOnCertFailureCallback.Cancel();
+    {    
+        chip::app::Cluster::OperationalCredentialCluster::AddOpCert::Type req;
+        SecureSessionHandle handle = device->GetSessionHandle();
 
-    ReturnErrorOnFailure(
-        cluster.AddOpCert(successCallback, failureCallback, opCertBuf, icaCertBuf, ByteSpan(nullptr, 0), mLocalDeviceId, 0));
+        using namespace std::placeholders;
+        auto onSuccessCallback = std::bind(&DeviceCommissioner::OnOperationalCertificateAddResponse, this, _1, _2, _3);
 
-    ChipLogProgress(Controller, "Sent operational certificate to the device");
+        ReturnErrorOnFailure(mInvokeInitiator.Init(mExchangeMgr, &mCommandDemuxer, device->GetDeviceId(), 0, &handle));
+
+        req.noc.assign(opCertBuf.data(), opCertBuf.data() + opCertBuf.size());
+        req.icaCertificate.assign(icaCertBuf.data(), icaCertBuf.data() + icaCertBuf.size());
+        req.caseAdminNode = mLocalDeviceId;
+        req.adminVendorId = 0;
+
+        ReturnErrorOnFailure(mCommandDemuxer.AddCommand<chip::app::Cluster::OperationalCredentialCluster::OpCertResponse::Type>(&req, app::CommandParams(req, 0), onSuccessCallback));
+        ReturnErrorOnFailure(mInvokeInitiator.Send());
+    }
 
     return CHIP_NO_ERROR;
 }
@@ -1236,30 +1247,25 @@ void DeviceCommissioner::OnAddOpCertFailureResponse(void * context, uint8_t stat
     commissioner->OnSessionEstablishmentError(CHIP_ERROR_INTERNAL);
 }
 
-void DeviceCommissioner::OnOperationalCertificateAddResponse(void * context, uint8_t StatusCode, uint64_t FabricIndex,
-                                                             uint8_t * DebugText)
+void DeviceCommissioner::OnOperationalCertificateAddResponse(app::InvokeInitiator& invokeInitiator, app::CommandParams &params, 
+                                                             chip::app::Cluster::OperationalCredentialCluster::OpCertResponse::Type *resp)
 {
     ChipLogProgress(Controller, "Device confirmed that it has received the operational certificate");
-    DeviceCommissioner * commissioner = reinterpret_cast<DeviceCommissioner *>(context);
 
     CHIP_ERROR err  = CHIP_NO_ERROR;
     Device * device = nullptr;
 
-    VerifyOrExit(commissioner->mState == State::Initialized, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mState == State::Initialized, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mDeviceBeingPaired < kNumMaxActiveDevices, err = CHIP_ERROR_INCORRECT_STATE);
 
-    commissioner->mOpCSRResponseCallback.Cancel();
-    commissioner->mOnCertFailureCallback.Cancel();
+    device = &mActiveDevices[mDeviceBeingPaired];
 
-    VerifyOrExit(commissioner->mDeviceBeingPaired < kNumMaxActiveDevices, err = CHIP_ERROR_INCORRECT_STATE);
-
-    device = &commissioner->mActiveDevices[commissioner->mDeviceBeingPaired];
-
-    err = commissioner->SendTrustedRootCertificate(device);
+    err = SendTrustedRootCertificate(device);
 
 exit:
     if (err != CHIP_NO_ERROR)
     {
-        commissioner->OnSessionEstablishmentError(err);
+        OnSessionEstablishmentError(err);
     }
 }
 

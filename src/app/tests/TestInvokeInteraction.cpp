@@ -287,7 +287,7 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
         buf = reader.GetBackingStore().Release();
     }
 
-    chip::app::InteractionModelEngine::GetInstance()->OnInvokeCommandRequest(invoke.GetExchange(), packetHdr, payloadHdr, std::move(buf));
+    invoke.OnMessageReceived(invoke.GetExchange(), PacketHeader(), PayloadHeader(), std::move(buf));
     NL_TEST_ASSERT(apSuite, gTestInvoke.mGotCommandB);
 }
 

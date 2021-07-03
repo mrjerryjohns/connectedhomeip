@@ -40,7 +40,7 @@
 #include <app/MessageDef/CommandList.h>
 #include <app/MessageDef/InvokeCommand.h>
 #include "SchemaTypes.h"
-#include "basic-types.h"
+#include <app/util/basic-types.h>
 #include "messaging/ExchangeDelegate.h"
 #include "protocols/secure_channel/Constants.h"
 #include <functional>
@@ -50,9 +50,10 @@ namespace app {
 
 struct StatusResponse {
 public:
-    Protocols::SecureChannel::GeneralStatusCode generalCode;
-    uint32_t protocolId;
-    uint16_t protocolCode;
+    bool IsError() { return generalCode != Protocols::SecureChannel::GeneralStatusCode::kSuccess; }
+    Protocols::SecureChannel::GeneralStatusCode generalCode = Protocols::SecureChannel::GeneralStatusCode::kSuccess;
+    uint32_t protocolId = 0;
+    uint16_t protocolCode = 0;
 };
 
 /**
@@ -68,15 +69,14 @@ struct CommandParams
     };
 
     template <class CodeGenType>
-    CommandParams(CodeGenType& t, chip::EndpointId endpointId, bool expectsResponses) {
-        ClusterId = (uint16_t)t.GetClusterId();
-        CommandId = (uint8_t)t.GetCommandId();
+    CommandParams(CodeGenType& t, chip::EndpointId endpointId, bool expectsResponses = true) {
+        ClusterId = (uint16_t)CodeGenType::GetClusterId();
+        CommandId = (uint8_t)CodeGenType::GetCommandId();
         EndpointId = endpointId;
         ExpectsResponses = expectsResponses;
     }
 
-    CommandParams() {
-    }
+    CommandParams() { }
 
     chip::EndpointId EndpointId = 0;
     chip::GroupId GroupId = 0;
@@ -172,6 +172,7 @@ public:
     CHIP_ERROR Init(Messaging::ExchangeManager *apExchangeMgr, ICommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession);
 
     CHIP_ERROR AddSRequestAndSend(CommandParams aParams, ISerializable *serializable);
+    CHIP_ERROR AddSRequest(CommandParams aParams, ISerializable *serializable);
     
     template <class F>
     CHIP_ERROR AddRequest(CommandParams aParams, F f) {
@@ -237,7 +238,7 @@ private:
     chip::System::PacketBufferTLVWriter mWriter;
     app::InvokeCommand::Builder mInvokeCommandBuilder;
     ICommandHandler *mHandler;
-    Messaging::ExchangeManager *mpExchangeMgr;
+    Messaging::ExchangeManager *mpExchangeMgr = nullptr;
     Messaging::ExchangeContext *mpExchangeCtx = nullptr;
 };
 

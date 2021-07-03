@@ -197,9 +197,24 @@ void InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext *
     responder = mInvokeResponders.CreateObject();
     assert(responder != nullptr);
 
-    err = responder->Init(apExchangeContext, std::move(aPayload));
-    SuccessOrExit(err);
+    err = responder->Init(apExchangeContext, aPayload.Retain());
 
+    if (err == CHIP_ERROR_CLUSTER_NOT_FOUND) {
+        err = CHIP_NO_ERROR;
+
+        for (auto & commandHandler : mCommandHandlerObjs)
+        {
+            if (commandHandler.IsFree())
+            {
+                err = commandHandler.Init(mpExchangeMgr, mpDelegate);
+                SuccessOrExit(err);
+                err = commandHandler.OnInvokeCommandRequest(apExchangeContext, aPacketHeader, aPayloadHeader, std::move(aPayload));
+                apExchangeContext = nullptr;
+                break;
+            }
+        }
+    }
+    
 exit:
     ChipLogFunctError(err);
 }

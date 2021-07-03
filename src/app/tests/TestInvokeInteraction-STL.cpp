@@ -43,11 +43,13 @@
 #include <transport/SecureSessionMgr.h>
 #include <transport/raw/UDP.h>
 #include <protocols/secure_channel/MessageCounterManager.h>
-
+#include <app/CommandDemuxer.h>
 #include <nlunit-test.h>
 
 #include <TestCluster-Gen.h>
 #include <NetworkCommissioningCluster-Gen.h>
+
+using namespace std::placeholders;
 
 namespace chip {
 static System::Layer gSystemLayer;
@@ -62,38 +64,6 @@ namespace app {
 nlTestSuite *gpSuite = nullptr;
 InvokeResponder *gServerInvoke = nullptr;
 Messaging::ExchangeContext *gClientEc = nullptr;
-
-class CommandDemuxer : public InvokeInitiator::ICommandHandler {
-public:
-   CommandDemuxer() {}
-
-   template <typename T>
-   int RegisterCommandHandler(std::function<int (InvokeInitiator&, CommandParams&, T& t1)> f1) {
-        auto f = [f1](InvokeInitiator& initiator, CommandParams &params, TLV::TLVReader &reader) {
-            T t1;
-            t1.Decode(reader);
-            f1(initiator, params, t1);
-        };
-
-        return 0;
-
-        mHandlers.push_back({f, T::GetClusterId(), T::GetCommandId()});
-   }
-
-   ~CommandDemuxer() {}
-
-   int HandleCommand(InvokeInitiator &initiator, CommandParams &params, TLV::TLVReader &reader);
-
-private:
-    struct Handler {
-        std::function<void (InvokeInitiator&, CommandParams &params, TLV::TLVReader &reader)> closure; 
-        uint16_t ClusterId;
-        uint16_t CommandId;
-    };
-
-   std::vector<Handler> mHandlers;
-};
-
 
 class TestServerCluster : public ClusterServer
 {
@@ -168,17 +138,16 @@ TestServerCluster::HandleRequest(CommandParams &commandParams, InvokeResponder &
     return CHIP_NO_ERROR;
 }
 
-class TestInvokeInteraction : public Messaging::ExchangeContextUnitTestDelegate, public InvokeInitiator::ICommandHandler
+class TestInvokeInteraction : public Messaging::ExchangeContextUnitTestDelegate
 {
 public:
     static void TestInvokeInteractionSimple(nlTestSuite * apSuite, void * apContext);
     void InterceptMessage(System::PacketBufferHandle buf);
     int GetNumActiveInvokes();
 
+    void OnCommandBResponse(InvokeInitiator &invokeInteraction, CommandParams &commandParams, chip::app::Cluster::TestCluster::CommandB::Type *response);
+    
 protected:
-    void HandleResponse(CommandParams &commandParams, InvokeInitiator &invokeInteraction, TLV::TLVReader *payload) final;
-    void HandleError(CommandParams &aPath, CHIP_ERROR error, StatusResponse *statusResponse) final {}
-
     System::PacketBufferHandle mBuf;
     bool mGotCommandB = false;
 };
@@ -191,40 +160,27 @@ void TestInvokeInteraction::InterceptMessage(System::PacketBufferHandle buf)
 }
 
 void
-TestInvokeInteraction::HandleResponse(CommandParams &commandParams, InvokeInitiator &invokeInteraction, TLV::TLVReader *payload)
+TestInvokeInteraction::OnCommandBResponse(InvokeInitiator &invokeInteraction, CommandParams &commandParams, chip::app::Cluster::TestCluster::CommandB::Type *response)
 {
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::app::Cluster::TestCluster::CommandB::Type resp;
+    NL_TEST_ASSERT(gpSuite, response);
 
-    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandBId) {
-        printf("Received CommandB\n");
+    printf("Received CommandB\n");
 
-        // 
-        // To prevent the stack from actually sending this message
-        //
-        //invokeInteraction.IncrementHoldoffRef();
+    NL_TEST_ASSERT(gpSuite, response->a == 21);
+    NL_TEST_ASSERT(gpSuite, response->b == 49);
+    NL_TEST_ASSERT(gpSuite, response->c.x == 19);
+    NL_TEST_ASSERT(gpSuite, response->c.y == 233);
 
-        NL_TEST_ASSERT(gpSuite, payload != nullptr); 
-
-        err = resp.Decode(*payload);
-        NL_TEST_ASSERT(gpSuite, err == CHIP_NO_ERROR);
-
-        NL_TEST_ASSERT(gpSuite, resp.a == 21);
-        NL_TEST_ASSERT(gpSuite, resp.b == 49);
-        NL_TEST_ASSERT(gpSuite, resp.c.x == 19);
-        NL_TEST_ASSERT(gpSuite, resp.c.y == 233);
-
-        for (size_t i = 0; i < resp.d.size(); i++) {
-            NL_TEST_ASSERT(gpSuite, resp.d[i] == (uint8_t)(255 - i));
-        }
-
-        for (size_t i = 0; i < resp.e.size(); i++) {
-            NL_TEST_ASSERT(gpSuite, resp.e[i].x == (uint8_t)(255 - i));
-            NL_TEST_ASSERT(gpSuite, resp.e[i].y == (uint8_t)(255 - i));
-        }
-
-        mGotCommandB = true;
+    for (size_t i = 0; i < response->d.size(); i++) {
+        NL_TEST_ASSERT(gpSuite, response->d[i] == (uint8_t)(255 - i));
     }
+
+    for (size_t i = 0; i < response->e.size(); i++) {
+        NL_TEST_ASSERT(gpSuite, response->e[i].x == (uint8_t)(255 - i));
+        NL_TEST_ASSERT(gpSuite, response->e[i].y == (uint8_t)(255 - i));
+    }
+
+    mGotCommandB = true;
 
     return;
 }
@@ -252,14 +208,16 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
     PacketHeader packetHdr;
     PayloadHeader payloadHdr;
     TestServerCluster server;
+    CommandDemuxer demuxer(invoke);
 
     err = chip::app::InteractionModelEngine::GetInstance()->RegisterServer(&server);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
 
-    invoke.Init(&chip::gExchangeManager, &gTestInvoke, 0, 0, NULL);
+    invoke.Init(&chip::gExchangeManager, &demuxer, 0, 0, NULL);
 
     {
         chip::app::Cluster::TestCluster::CommandA::Type req;
+        auto onSuccessFunc = std::bind(&TestInvokeInteraction::OnCommandBResponse, &gTestInvoke, _1, _2, _3);
 
         req.a = 10;
         req.b = 20;
@@ -267,7 +225,10 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
         req.c.y = 99;
         req.d = {0, 1, 2, 3, 4};
 
-        err = invoke.AddSRequestAndSend(CommandParams(req, 0, true), &req);
+        err = demuxer.AddCommand<chip::app::Cluster::TestCluster::CommandB::Type>(&req, CommandParams(req, 0, true),  onSuccessFunc);
+        NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
+
+        err = invoke.Send();
         NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
     }
 

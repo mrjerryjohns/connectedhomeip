@@ -57,8 +57,8 @@ namespace chip::app::Cluster::TestCluster {
     namespace CommandA {
         class Type : public ISerializable {
             public:
-                ClusterId_t GetClusterId() { return kClusterId; }
-                uint16_t GetCommandId() { return kCommandAId; }
+                static ClusterId_t GetClusterId() { return kClusterId; }
+                static uint16_t GetCommandId() { return kCommandAId; }
 
                 uint8_t a;
                 uint8_t b;
@@ -73,8 +73,8 @@ namespace chip::app::Cluster::TestCluster {
     namespace CommandB {
         class Type : public ISerializable {
             public:
-                ClusterId_t GetClusterId() { return kClusterId; }
-                uint16_t GetCommandId() { return kCommandBId; }
+                static uint16_t GetClusterId() { return kClusterId; }
+                static uint16_t GetCommandId() { return kCommandBId; }
                 
                 struct empty {};
 
