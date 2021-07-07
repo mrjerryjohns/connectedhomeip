@@ -35,8 +35,7 @@
 namespace chip {
 namespace Credentials {
 
-static constexpr size_t kOperationalCredentialsMax     = 5;
-static constexpr size_t kOperationalCertificateMaxSize = 400;
+static constexpr size_t kOperationalCredentialsMax = 5;
 
 using namespace Crypto;
 
@@ -49,13 +48,13 @@ struct NodeCredential
 struct OperationalCredentialSerializable
 {
     uint16_t mNodeCredentialLen;
-    uint8_t mNodeCredential[kOperationalCertificateMaxSize];
+    uint8_t mNodeCredential[kMaxCHIPCertLength];
     uint16_t mNodeKeypairLen;
     uint8_t mNodeKeypair[kP256_PublicKey_Length + kP256_PrivateKey_Length];
     uint16_t mRootCertificateLen;
-    uint8_t mRootCertificate[kOperationalCertificateMaxSize];
+    uint8_t mRootCertificate[kMaxCHIPCertLength];
     uint16_t mCACertificateLen;
-    uint8_t mCACertificate[kOperationalCertificateMaxSize];
+    uint8_t mCACertificate[kMaxCHIPCertLength];
 };
 
 struct NodeCredentialMap
@@ -153,7 +152,7 @@ public:
      *
      * @return A pointer to the Trusted Root ID on success. Otherwise, nullptr if no Trust Anchor is found.
      **/
-    const CertificateKeyId * GetTrustedRootId(uint16_t certSetIndex) const;
+    CertificateKeyId GetTrustedRootId(uint16_t certSetIndex) const;
 
     /**
      * @brief Check whether certificate set is in the operational credential set.
@@ -254,16 +253,16 @@ public:
     CHIP_ERROR SetDevOpCredKeypair(const CertificateKeyId & trustedRootId, P256Keypair * newKeypair);
 
 private:
-    ChipCertificateSet * mOpCreds; /**< Pointer to an array of certificate data. */
-    uint8_t mOpCredCount;          /**< Number of certificates in mOpCreds
-                                    array. We maintain the invariant that all
-                                    the slots at indices less than
-                                    mCertCount have been constructed and slots
-                                    at indices >= mCertCount have either never
-                                    had their constructor called, or have had
-                                    their destructor called since then. */
-    uint8_t mMaxCerts;             /**< Length of mOpCreds array. */
-    bool mMemoryAllocInternal;     /**< Indicates whether temporary memory buffers are allocated internally. */
+    ChipCertificateSet * mOpCreds;     /**< Pointer to an array of certificate data. */
+    uint8_t mOpCredCount;              /**< Number of certificates in mOpCreds
+                                        array. We maintain the invariant that all
+                                        the slots at indices less than
+                                        mCertCount have been constructed and slots
+                                        at indices >= mCertCount have either never
+                                        had their constructor called, or have had
+                                        their destructor called since then. */
+    uint8_t mMaxCerts;                 /**< Length of mOpCreds array. */
+    bool mMemoryAllocInternal = false; /**< Indicates whether temporary memory buffers are allocated internally. */
     NodeCredentialMap mChipDeviceCredentials[kOperationalCredentialsMax];
     uint8_t mChipDeviceCredentialsCount;
     NodeKeypairMap mDeviceOpCredKeypair[kOperationalCredentialsMax];

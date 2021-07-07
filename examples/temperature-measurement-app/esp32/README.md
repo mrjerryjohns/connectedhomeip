@@ -10,6 +10,7 @@ This example is meant to represent a minimal-sized application.
         -   [Setting up Python Controller](#setting-up-python-controller)
         -   [Commissioning over BLE](#commissioning-over-ble)
         -   [Cluster control](#cluster-control)
+    -   [Flashing app using script](#flashing-app-using-script)
     -   [Optimization](#optimization)
 
 ---
@@ -22,15 +23,15 @@ Development Framework and the xtensa-esp32-elf toolchain.
 The VSCode devcontainer has these components pre-installed, so you can skip this
 step. To install these components manually, follow these steps:
 
--   Clone the Espressif ESP-IDF and checkout release/v4.2 branch
+-   Clone the Espressif ESP-IDF and checkout
+    [v4.3 tag](https://github.com/espressif/esp-idf/releases/v4.3)
 
           $ mkdir ${HOME}/tools
           $ cd ${HOME}/tools
           $ git clone https://github.com/espressif/esp-idf.git
           $ cd esp-idf
-          $ git checkout release/v4.2
+          $ git checkout v4.3
           $ git submodule update --init
-          $ export IDF_PATH=${HOME}/tools/esp-idf
           $ ./install.sh
 
 -   Install ninja-build
@@ -58,13 +59,9 @@ make sure the IDF_PATH has been exported(See the manual setup steps above).
 
 -   Configuration Options
 
-        To choose from the different configuration options, run menuconfig
-
-          $ idf.py menuconfig
-
-        Select ESP32 based `Device Type` through `Demo`->`Device Type`.
-        The device types that are currently supported include `ESP32-DevKitC` (default),
-        and `M5Stack`
+    This application uses `ESP32-DevKitC` as a default device type. To use other
+    ESP32 based device types, please refer
+    [examples/all-clusters-app/esp32](https://github.com/project-chip/connectedhomeip/tree/master/examples/all-clusters-app/esp32)
 
 -   To build the demo application.
 
@@ -79,7 +76,7 @@ make sure the IDF_PATH has been exported(See the manual setup steps above).
     before flashing. For ESP32-DevKitC devices this is labeled in the
     [functional description diagram](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/esp32/get-started-devkitc.html#functional-description).
 
-          $ idf.py flash monitor ESPPORT=/dev/tty.SLAB_USBtoUART
+          $ idf.py -p /dev/tty.SLAB_USBtoUART flash monitor
 
     Note: Some users might have to install the
     [VCP driver](https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers)
@@ -92,7 +89,7 @@ make sure the IDF_PATH has been exported(See the manual setup steps above).
 
 -   If desired, the monitor can be run again like so:
 
-          $ idf.py monitor ESPPORT=/dev/tty.SLAB_USBtoUART
+          $ idf.py -p /dev/tty.SLAB_USBtoUART monitor
 
 ## Commissioning and cluster control
 
@@ -112,7 +109,7 @@ menuconfig).
 2.  Now flash the device with the same command as before. (Use the right `/dev`
     device)
 
-          $ idf.py flash monitor ESPPORT=/dev/tty.SLAB_USBtoUART
+          $ idf.py -p /dev/tty.SLAB_USBtoUART flash monitor
 
 3.  The device should boot up. When device connects to your network, you will
     see a log like this on the device console.
@@ -133,7 +130,7 @@ menuconfig).
 Note: The ESP32 does not support 5GHz networks. Also, the Device will persist
 your network configuration. To erase it, simply run.
 
-    $ idf.py erase_flash ESPPORT=/dev/tty.SLAB_USBtoUART
+    $ idf.py -p /dev/tty.SLAB_USBtoUART erase_flash
 
 ### Setting up Python Controller
 
@@ -189,11 +186,30 @@ commissioning and cluster control.
 
     `chip-device-ctrl > zcl Basic MfgSpecificPing 135246 1 0`
 
+### Flashing app using script
+
+-   Follow these steps to use `${app_name}.flash.py`.
+
+    -   First set IDF target, run set-target with one of the commands.
+
+            $ idf.py set-target esp32
+            $ idf.py set-target esp32c3
+
+    -   Execute below sequence of commands
+
+```
+        $ export ESPPORT=/dev/tty.SLAB_USBtoUART
+        $ export ESPBAUD=${baud_value}
+        $ idf.py build
+        $ idf.py flashing_script
+        $ python ${app_name}.flash.py
+```
+
 ## Optimization
 
 Optimization related to WiFi, BLuetooth, Asserts etc are the part of this
 example by default. To enable this option set is_debug=false from command-line.
 
 ```
-idf.py -Dis_debug=false build flash monitor
+idf.py -p /dev/tty.SLAB_USBtoUART -Dis_debug=false build flash monitor
 ```

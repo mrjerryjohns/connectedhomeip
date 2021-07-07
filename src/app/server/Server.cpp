@@ -100,6 +100,7 @@ class ServerStorageDelegate : public PersistentStorageDelegate
 };
 
 ServerStorageDelegate gServerStorage;
+SessionIDAllocator gSessionIDAllocator;
 
 CHIP_ERROR PersistAdminPairingToKVS(AdminPairingInfo * admin, AdminId nextAvailableId)
 {
@@ -151,7 +152,7 @@ void EraseAllAdminPairingsUpTo(AdminId nextAvailableId)
     }
 }
 
-static CHIP_ERROR RestoreAllSessionsFromKVS(SecureSessionMgr & sessionMgr, RendezvousServer & server)
+static CHIP_ERROR RestoreAllSessionsFromKVS(SecureSessionMgr & sessionMgr)
 {
     uint16_t nextSessionKeyId = 0;
     // It's not an error if the key doesn't exist. Just return right away.
@@ -172,16 +173,22 @@ static CHIP_ERROR RestoreAllSessionsFromKVS(SecureSessionMgr & sessionMgr, Rende
 
             ChipLogProgress(AppServer, "Fetched the session information: from 0x" ChipLogFormatX64,
                             ChipLogValueX64(session->PeerConnection().GetPeerNodeId()));
-            sessionMgr.NewPairing(Optional<Transport::PeerAddress>::Value(session->PeerConnection().GetPeerAddress()),
-                                  session->PeerConnection().GetPeerNodeId(), session, SecureSession::SessionRole::kResponder,
-                                  connection.GetAdminId(), nullptr);
+            if (gSessionIDAllocator.Reserve(keyId) == CHIP_NO_ERROR)
+            {
+                sessionMgr.NewPairing(Optional<Transport::PeerAddress>::Value(session->PeerConnection().GetPeerAddress()),
+                                      session->PeerConnection().GetPeerNodeId(), session, SecureSession::SessionRole::kResponder,
+                                      connection.GetAdminId());
+            }
+            else
+            {
+                ChipLogProgress(AppServer, "Session Key ID  %" PRIu16 " cannot be used. Skipping over this session", keyId);
+            }
             session->Clear();
         }
     }
 
     chip::Platform::Delete(session);
 
-    server.SetNextKeyId(nextSessionKeyId);
     return CHIP_NO_ERROR;
 }
 
@@ -191,6 +198,7 @@ void EraseAllSessionsUpTo(uint16_t nextSessionKeyId)
 
     for (uint16_t keyId = 0; keyId < nextSessionKeyId; keyId++)
     {
+        gSessionIDAllocator.Free(keyId);
         StorablePeerConnection::DeleteFromKVS(gServerStorage, keyId);
     }
 }
@@ -317,9 +325,10 @@ static CHIP_ERROR OpenPairingWindowUsingVerifier(uint16_t discriminator, PASEVer
 class ServerCallback : public ExchangeDelegate
 {
 public:
-    void OnMessageReceived(Messaging::ExchangeContext * exchangeContext, const PacketHeader & packetHeader,
-                           const PayloadHeader & payloadHeader, System::PacketBufferHandle && buffer) override
+    CHIP_ERROR OnMessageReceived(Messaging::ExchangeContext * exchangeContext, const PacketHeader & packetHeader,
+                                 const PayloadHeader & payloadHeader, System::PacketBufferHandle && buffer) override
     {
+        CHIP_ERROR err = CHIP_NO_ERROR;
         // as soon as a client connects, assume it is connected
         VerifyOrExit(!buffer.IsNull(), ChipLogError(AppServer, "Received data but couldn't process it..."));
         VerifyOrExit(packetHeader.GetSourceNodeId().HasValue(), ChipLogError(AppServer, "Unknown source for received message"));
@@ -329,14 +338,13 @@ public:
         VerifyOrExit(packetHeader.GetSourceNodeId().Value() != kUndefinedNodeId,
                      ChipLogError(AppServer, "Unknown source for received message"));
 
-        ChipLogProgress(AppServer, "Packet received from Node:%x: %u bytes", packetHeader.GetSourceNodeId().Value(),
-                        buffer->DataLength());
+        ChipLogProgress(AppServer, "Packet received from Node 0x" ChipLogFormatX64 ": %u bytes",
+                        ChipLogValueX64(packetHeader.GetSourceNodeId().Value()), buffer->DataLength());
 
         // TODO: This code is temporary, and must be updated to use the Cluster API.
         // Issue: https://github.com/project-chip/connectedhomeip/issues/4725
         if (payloadHeader.HasProtocol(chip::Protocols::ServiceProvisioning::Id))
         {
-            CHIP_ERROR err = CHIP_NO_ERROR;
             uint32_t timeout;
             uint16_t discriminator;
             PASEVerifier verifier;
@@ -361,7 +369,7 @@ public:
                 }
             }
 
-            ChipLogProgress(AppServer, "Pairing Window timeout %d seconds", timeout);
+            ChipLogProgress(AppServer, "Pairing Window timeout %" PRIu32 " seconds", timeout);
 
             if (err != CHIP_NO_ERROR)
             {
@@ -382,6 +390,7 @@ public:
 
     exit:
         exchangeContext->Close();
+        return err;
     }
 
     void OnResponseTimeout(ExchangeContext * ec) override
@@ -429,9 +438,8 @@ CHIP_ERROR OpenDefaultPairingWindow(ResetAdmins resetAdmins, chip::PairingWindow
 
     if (resetAdmins == ResetAdmins::kYes)
     {
-        uint16_t nextKeyId = gRendezvousServer.GetNextKeyId();
         EraseAllAdminPairingsUpTo(gNextAvailableAdminId);
-        EraseAllSessionsUpTo(nextKeyId);
+        EraseAllSessionsUpTo(gSessionIDAllocator.Peek());
         // Only resetting gNextAvailableAdminId at reboot otherwise previously paired device with adminID 0
         // can continue sending messages to accessory as next available admin will also be 0.
         // This logic is not up to spec, will be implemented up to spec once AddOptCert is implemented.
@@ -479,7 +487,7 @@ void InitServer(AppDelegate * delegate)
     PersistedStorage::KeyValueStoreMgrImpl().Init("/tmp/chip_server_kvs");
 #endif
 
-    err = gRendezvousServer.Init(delegate, &gServerStorage);
+    err = gRendezvousServer.Init(delegate, &gServerStorage, &gSessionIDAllocator);
     SuccessOrExit(err);
 
     gAdvDelegate.SetDelegate(delegate);
@@ -534,7 +542,7 @@ void InitServer(AppDelegate * delegate)
         VerifyOrExit(CHIP_NO_ERROR == RestoreAllAdminPairingsFromKVS(gAdminPairings, gNextAvailableAdminId),
                      ChipLogError(AppServer, "Could not restore admin table"));
 
-        VerifyOrExit(CHIP_NO_ERROR == RestoreAllSessionsFromKVS(gSessions, gRendezvousServer),
+        VerifyOrExit(CHIP_NO_ERROR == RestoreAllSessionsFromKVS(gSessions),
                      ChipLogError(AppServer, "Could not restore previous sessions"));
     }
     else
@@ -544,8 +552,8 @@ void InitServer(AppDelegate * delegate)
 #endif
     }
 
-// ESP32 examples have a custom logic for enabling DNS-SD
-#if CHIP_DEVICE_CONFIG_ENABLE_MDNS && !CHIP_DEVICE_LAYER_TARGET_ESP32
+// ESP32 and Mbed OS examples have a custom logic for enabling DNS-SD
+#if CHIP_DEVICE_CONFIG_ENABLE_MDNS && !CHIP_DEVICE_LAYER_TARGET_ESP32 && !CHIP_DEVICE_LAYER_TARGET_MBED
     app::Mdns::StartServer();
 #endif
 
@@ -559,7 +567,8 @@ void InitServer(AppDelegate * delegate)
     err = gExchangeMgr.RegisterUnsolicitedMessageHandlerForProtocol(Protocols::ServiceProvisioning::Id, &gCallbacks);
     VerifyOrExit(err == CHIP_NO_ERROR, err = CHIP_ERROR_NO_UNSOLICITED_MESSAGE_HANDLER);
 
-    err = gCASEServer.ListenForSessionEstablishment(&gExchangeMgr, &gTransports, &gSessions, &GetGlobalAdminPairingTable());
+    err = gCASEServer.ListenForSessionEstablishment(&gExchangeMgr, &gTransports, &gSessions, &GetGlobalAdminPairingTable(),
+                                                    &gSessionIDAllocator);
     SuccessOrExit(err);
 
     err = AddCoreServerClusters();

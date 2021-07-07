@@ -48,6 +48,8 @@ static_library("server") {
     "${chip_root}/gen-v2/device:includes"
   ]
 
+  cflags = [ "-Wconversion" ]
+
   public_deps = [
     "${chip_root}/gen-v2/device",
     "${chip_root}/src/app",

@@ -162,7 +162,7 @@ CHIP_ERROR NetworkCommissioningServer::AddThreadNetwork(NetworkCommissioningClus
 
 exit:
     // TODO: We should encode response command here.
-    ChipLogDetail(Zcl, "AddThreadNetwork: %d", err);
+    ChipLogDetail(Zcl, "AddThreadNetwork: %" PRIu8, err);
     return err;
 #else
     // The target does not supports ThreadNetwork. We should not add AddThreadNetwork command in that case then the upper layer will
@@ -214,12 +214,11 @@ CHIP_ERROR NetworkCommissioningServer::AddWifiNetwork(NetworkCommissioningCluste
 
     VerifyOrExit(err == CHIP_NO_ERROR, );
 
-    ChipLogDetail(Zcl, "WiFi provisioning data: SSID: %s", request.Ssid);
-
+    ChipLogDetail(Zcl, "WiFi provisioning data: SSID: %.*s", static_cast<int>(request.Ssid.size()), request.Ssid.data());
 exit:
     // TODO: We should encode response command here.
 
-    ChipLogDetail(Zcl, "AddWiFiNetwork: %d", err);
+    ChipLogDetail(Zcl, "AddWiFiNetwork: %" PRIu8, err);
     return err;
 #else
     // The target does not supports WiFiNetwork.

@@ -44,12 +44,9 @@ class CommandHandler : public Command
 public:
     CHIP_ERROR OnInvokeCommandRequest(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader,
                                       const PayloadHeader & payloadHeader, System::PacketBufferHandle && payload);
-    
-    void OnMessageReceived(Messaging::ExchangeContext * ec, const PacketHeader & packetHeader, const PayloadHeader & payloadHeader,
-                           System::PacketBufferHandle && payload);
-    CHIP_ERROR AddStatusCode(const CommandPathParams * apCommandPathParams,
+    CHIP_ERROR AddStatusCode(const CommandPathParams & aCommandPathParams,
                              const Protocols::SecureChannel::GeneralStatusCode aGeneralCode, const Protocols::Id aProtocolId,
-                             const uint16_t aProtocolCode) override;
+                             const Protocols::InteractionModel::ProtocolCode aProtocolCode) override;
 
 private:
     friend class TestCommandInteraction;
