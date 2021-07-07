@@ -8,6 +8,23 @@
 namespace chip::app::Cluster::OperationalCredentialCluster {
     const ClusterId_t kClusterId = 0x003E;
 
+    namespace OpCsrRequest {
+        enum FieldID {
+            kFieldIdCsrNonce = 0
+        };
+    }
+
+    namespace OpCsrResponse {
+        enum FieldID {
+            kFieldIdCsr = 0,
+            kFieldIdCsrNonce = 1,
+            kFieldIdVendorReserved1 = 2,
+            kFieldIdVendorReserved2 = 3,
+            kFieldIdVendorReserved3 = 4,
+            kFieldIdSignature = 5
+        };
+    }
+
     namespace AddOpCert {
         enum FieldId {
             kFieldIdNoc = 0,

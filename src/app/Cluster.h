@@ -59,41 +59,8 @@ public:
 
 private:
     ClusterDescriptor *mClusterDescriptor;
-    chip::EndpointId mEndpoint;
+    chip::EndpointId mEndpoint = 0;
 };
-
-#if 0
-class ClusterClient : public InvokeInteraction::CommandHandler
-{
-public:
-    ClusterClient(ClusterDescriptor *apClusterDescriptor);
-    InvokeInteraction* StartInvoke();
-    virtual ~ClusterClient() = default;
-
-    InvokeInteraction::CommandParams BuildParams() {
-        InvokeInteraction::CommandParams params;
-        
-        params.EndpointId = mRemoteEndpoint;
-        params.ClusterId = (ClusterId)mClusterDescriptor->ClusterId;
-
-        return params;
-    }
-
-    void SetRemoteTarget(NodeId aRemoteNode, Transport::AdminId aRemoteAdmin) { mRemoteNode = aRemoteNode; mRemoteAdmin = aRemoteAdmin; }
-    void SetRemoteEndpoint(chip::EndpointId aEndpointId) { mRemoteEndpoint = aEndpointId; }
-
-    ClusterId_t GetClusterId() {return mClusterDescriptor->ClusterId;}
-    chip::EndpointId GetEndpointId() {return mRemoteEndpoint;}
-    NodeId GetRemoteNodeId() {return mRemoteNode;}
-    Transport::AdminId GetRemoteAdmin() { return mRemoteAdmin; }
-
-private:
-    ClusterDescriptor *mClusterDescriptor;
-    chip::EndpointId mRemoteEndpoint;
-    NodeId mRemoteNode;
-    Transport::AdminId mRemoteAdmin;
-};
-#endif
 
 } // namespace app
 } // namespace chip

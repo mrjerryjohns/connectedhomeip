@@ -45,4 +45,37 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
                 CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
+
+    namespace OpCsrRequest {
+        class Type : public ISerializable {
+            public:
+                std::vector<uint8_t> csrNonce;
+
+                static ClusterId_t GetClusterId() { return kClusterId; }
+                static uint16_t GetCommandId() { return 0x04; }
+
+            public:
+                CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
+                CHIP_ERROR Decode(TLV::TLVReader &reader) final;
+        };
+    }
+
+    namespace OpCsrResponse {
+        class Type : public ISerializable {
+            public:
+                std::vector<uint8_t> csr;
+                std::vector<uint8_t> csrNonce;
+                std::vector<uint8_t> vendorReserved1;
+                std::vector<uint8_t> vendorReserved2;
+                std::vector<uint8_t> vendorReserved3;
+                std::vector<uint8_t> signature;
+
+                static ClusterId_t GetClusterId() { return kClusterId; }
+                static uint16_t GetCommandId() { return 0x05; }
+
+            public:
+                CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
+                CHIP_ERROR Decode(TLV::TLVReader &reader) final;
+        };
+    }
 }

@@ -50,15 +50,21 @@
 namespace chip {
 namespace app {
 
-class CommandDemuxer : public InvokeInitiator::ICommandHandler {
+class DemuxedInvokeInitiator : public InvokeInitiator::ICommandHandler {
 public :
-   CommandDemuxer(InvokeInitiator &initiator) : mInitiator(initiator) {}
+   typedef std::function<void (DemuxedInvokeInitiator& demuxedInitiator)> onDoneFuncDef;
+
+   DemuxedInvokeInitiator(onDoneFuncDef onDoneFunc) { mOnDoneFunc = onDoneFunc; }
+
+   CHIP_ERROR Init(Messaging::ExchangeManager *apExchangeMgr, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle *secureSession) {
+       return mInitiator.Init(apExchangeMgr, this, aNodeId, aAdminId, secureSession);
+   }
 
    template <typename T>
    CHIP_ERROR AddCommand(ISerializable *request, CommandParams params,
-                  std::function<void (InvokeInitiator&, CommandParams&, T* t1)> onDataFunc = {}, 
-                  std::function<void (CHIP_ERROR error, StatusResponse *response)> onErrorFunc = {}) {
-        auto onDataClosure = [onDataFunc](InvokeInitiator& initiator, CommandParams &params, TLV::TLVReader *reader) {
+                  std::function<void (DemuxedInvokeInitiator &invokeInitiator, CommandParams&, T* t1)> onDataFunc, 
+                  std::function<void (DemuxedInvokeInitiator &invokeInitiator, CHIP_ERROR error, StatusResponse *response)> onErrorFunc = {}) {
+        auto onDataClosure = [onDataFunc](DemuxedInvokeInitiator& initiator, CommandParams &params, TLV::TLVReader *reader) {
             if (reader) {
                 T t1;
                 t1.Decode(*reader);
@@ -69,15 +75,14 @@ public :
             }
         };
 
-        printf("Command ID %02x\n", T::GetCommandId());
         mHandlers.push_back({onDataClosure, onErrorFunc, T::GetClusterId(), T::GetCommandId()});
         return mInitiator.AddSRequest(params, request);
    }
 
    CHIP_ERROR AddCommand(ISerializable *request, CommandParams params,
-                  std::function<void (InvokeInitiator&, CommandParams&)> onDataFunc = {}, 
-                  std::function<void (CHIP_ERROR error, StatusResponse *response)> onErrorFunc = {}) {
-        auto onDataClosure = [onDataFunc](InvokeInitiator& initiator, CommandParams &params, TLV::TLVReader *reader) {
+                  std::function<void (DemuxedInvokeInitiator& invokeInitiator, CommandParams&)> onDataFunc = {}, 
+                  std::function<void (DemuxedInvokeInitiator& invokeInitiator, CHIP_ERROR error, StatusResponse *response)> onErrorFunc = {}) {
+        auto onDataClosure = [onDataFunc](DemuxedInvokeInitiator& initiator, CommandParams &params, TLV::TLVReader *reader) {
             onDataFunc(initiator, params);
         };
 
@@ -85,34 +90,53 @@ public :
         return mInitiator.AddSRequest(params, request);
    }
    
-   ~CommandDemuxer() {}
+   ~DemuxedInvokeInitiator() {}
 
-   void HandleResponse(CommandParams &params, InvokeInitiator &initiator, TLV::TLVReader *payload) final {
+   void HandleResponse(InvokeInitiator &initiator, CommandParams &params, TLV::TLVReader *payload) final {
+       bool foundMatch = false;
+
        for (auto iter : mHandlers) {
            if (iter.clusterId == params.ClusterId && iter.commandId == params.CommandId) {
-               iter.onDataClosure(initiator, params, payload);
+               iter.onDataClosure(*this, params, payload);
+               foundMatch = true;
+           }
+       }
+
+       if (!foundMatch) {
+           ChipLogProgress(DataManagement, "Could not find a matching demuxed handler for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
+                           params.ClusterId, params.EndpointId, params.CommandId);
+       }           
+   }
+
+   void HandleError(InvokeInitiator &initiator, CommandParams *params, CHIP_ERROR error, StatusResponse *statusResponse) final {
+       for (auto iter : mHandlers) {
+           if ((params && (iter.clusterId == params->ClusterId && iter.commandId == params->CommandId)) || (!params)) {
+               iter.onErrorFunc(*this, error, statusResponse);
            }
        }
    }
 
-   void HandleError(CommandParams &params, CHIP_ERROR error, StatusResponse *statusResponse) final {
-       for (auto iter : mHandlers) {
-           if (iter.clusterId == params.ClusterId && iter.commandId == params.CommandId) {
-               iter.onErrorFunc(error, statusResponse);
-           }
-       }
-   }       
+   CHIP_ERROR Send() {
+       return mInitiator.Send();
+   }
+
+   void OnEnd(InvokeInitiator &initiator) final {
+        mOnDoneFunc(*this);
+   }
+
+   InvokeInitiator &GetInitiator() { return mInitiator; }
 
 private:
     struct Handler {
-        std::function<void (InvokeInitiator&, CommandParams &params, TLV::TLVReader *reader)> onDataClosure; 
-        std::function<void (CHIP_ERROR error, StatusResponse *response)> onErrorFunc;
+        std::function<void (DemuxedInvokeInitiator& invokeInitiator, CommandParams &params, TLV::TLVReader *reader)> onDataClosure; 
+        std::function<void (DemuxedInvokeInitiator& invokeInitiator, CHIP_ERROR error, StatusResponse *response)> onErrorFunc;
         ClusterId_t clusterId;
         uint16_t commandId;
     };
 
-   InvokeInitiator &mInitiator;
+   InvokeInitiator mInitiator;
    std::vector<Handler> mHandlers;
+   onDoneFuncDef mOnDoneFunc;
 };
 
 } // namespace app

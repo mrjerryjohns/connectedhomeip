@@ -164,9 +164,10 @@ public:
     class ICommandHandler
     {
     public:
-        virtual void HandleResponse(CommandParams &commandParams, InvokeInitiator &invokeInteraction, TLV::TLVReader *payload) = 0;
-        virtual void HandleError(CommandParams &aPath, CHIP_ERROR error, StatusResponse *statusResponse) = 0;
-        virtual ~ICommandHandler() {} 
+        virtual void HandleResponse(InvokeInitiator &invokeInteraction, CommandParams &commandParams, TLV::TLVReader *payload) = 0;
+        virtual void HandleError(InvokeInitiator &invokeInteration, CommandParams *aPath, CHIP_ERROR error, StatusResponse *statusResponse) = 0;
+        virtual void OnEnd(InvokeInitiator &invokeInteration) = 0;
+        virtual ~ICommandHandler() {}
     };
 
     CHIP_ERROR Init(Messaging::ExchangeManager *apExchangeMgr, ICommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession);
@@ -215,8 +216,7 @@ private:
 
     void OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
                            const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload) override;
-    void OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext) override {}
-    
+    void OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext) override;
 
     Messaging::ExchangeContext *GetExchangeContext() { return mpExchangeCtx; }
     friend class InteractionModelEngine;

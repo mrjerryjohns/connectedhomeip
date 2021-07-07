@@ -98,4 +98,91 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
             return CHIP_NO_ERROR;
         }
     }
+
+    namespace OpCsrRequest {
+        CHIP_ERROR Type::Encode(TLV::TLVWriter &writer, uint64_t tag) {
+            TLV::TLVType outer;
+            ReturnErrorOnFailure(writer.StartContainer(tag, TLV::kTLVType_Structure, outer));
+            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdCsrNonce), &csrNonce[0], csrNonce.size()));
+            ReturnErrorOnFailure(writer.EndContainer(outer));
+            ReturnErrorOnFailure(writer.Finalize());
+            return CHIP_NO_ERROR;
+        }
+
+        CHIP_ERROR Type::Decode(TLV::TLVReader &reader) {
+            CHIP_ERROR err;
+            TLV::TLVType outer;
+
+            err = reader.EnterContainer(outer);
+            ReturnErrorOnFailure(err);
+
+            while ((err = reader.Next()) == CHIP_NO_ERROR) {
+                uint64_t tag = reader.GetTag();
+
+                if (tag == TLV::ContextTag(kFieldIdCsrNonce)) {
+                   csrNonce.resize(reader.GetLength());
+                   ReturnErrorOnFailure(reader.GetBytes(csrNonce.data(), reader.GetLength()));
+                }
+            }
+
+            ReturnErrorOnFailure(reader.ExitContainer(outer));
+            return CHIP_NO_ERROR;
+        }
+    }
+
+    namespace OpCsrResponse {
+        CHIP_ERROR Type::Encode(TLV::TLVWriter &writer, uint64_t tag) {
+            TLV::TLVType outer;
+            ReturnErrorOnFailure(writer.StartContainer(tag, TLV::kTLVType_Structure, outer));
+            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdCsr), &csr[0], csr.size()));
+            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdCsrNonce), &csrNonce[0], csrNonce.size()));
+            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdVendorReserved1), &vendorReserved1[0], vendorReserved1.size()));
+            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdVendorReserved2), &vendorReserved2[0], vendorReserved2.size()));
+            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdVendorReserved3), &vendorReserved3[0], vendorReserved3.size()));
+            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdSignature), &signature[0], signature.size()));
+            ReturnErrorOnFailure(writer.EndContainer(outer));
+            ReturnErrorOnFailure(writer.Finalize());
+            return CHIP_NO_ERROR;
+        }
+
+        CHIP_ERROR Type::Decode(TLV::TLVReader &reader) {
+            CHIP_ERROR err;
+            TLV::TLVType outer;
+
+            err = reader.EnterContainer(outer);
+            ReturnErrorOnFailure(err);
+
+            while ((err = reader.Next()) == CHIP_NO_ERROR) {
+                uint64_t tag = reader.GetTag();
+
+                if (tag == TLV::ContextTag(kFieldIdCsr)) {
+                   csr.resize(reader.GetLength());
+                   ReturnErrorOnFailure(reader.GetBytes(csr.data(), reader.GetLength()));
+                }
+                else if (tag == TLV::ContextTag(kFieldIdCsrNonce)) {
+                   csrNonce.resize(reader.GetLength());
+                   ReturnErrorOnFailure(reader.GetBytes(csrNonce.data(), reader.GetLength()));
+                }
+                else if (tag == TLV::ContextTag(kFieldIdVendorReserved1)) {
+                   vendorReserved1.resize(reader.GetLength());
+                   ReturnErrorOnFailure(reader.GetBytes(vendorReserved1.data(), reader.GetLength()));
+                }
+                else if (tag == TLV::ContextTag(kFieldIdVendorReserved2)) {
+                   vendorReserved2.resize(reader.GetLength());
+                   ReturnErrorOnFailure(reader.GetBytes(vendorReserved2.data(), reader.GetLength()));
+                }
+                else if (tag == TLV::ContextTag(kFieldIdVendorReserved3)) {
+                   vendorReserved3.resize(reader.GetLength());
+                   ReturnErrorOnFailure(reader.GetBytes(vendorReserved3.data(), reader.GetLength()));
+                }
+                else if (tag == TLV::ContextTag(kFieldIdSignature)) {
+                   signature.resize(reader.GetLength());
+                   ReturnErrorOnFailure(reader.GetBytes(signature.data(), reader.GetLength()));
+                }
+            }
+
+            ReturnErrorOnFailure(reader.ExitContainer(outer));
+            return CHIP_NO_ERROR;
+        }
+    }
 }

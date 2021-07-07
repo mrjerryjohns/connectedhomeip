@@ -18,7 +18,6 @@
 
 /**
  *    @file
- *      This file defines Base class for a CHIP IM Command
  *
  */
 #include <platform/CHIPDeviceLayer.h>
@@ -121,11 +120,9 @@ exit:
                 ChipLogProgress(DataManagement, "Could not find a matching server cluster for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
                                 params.ClusterId, params.EndpointId, params.CommandId);
 
-                SuccessOrExit((err = CHIP_ERROR_CLUSTER_NOT_FOUND));
-
-                // err = AddStatusCode(params, Protocols::SecureChannel::GeneralStatusCode::kBadRequest,
-                //                     Protocols::SecureChannel::Id, Protocols::SecureChannel::kProtocolCodeGeneralFailure);
-                // SuccessOrExit(err);
+                err = AddStatusCode(params, Protocols::SecureChannel::GeneralStatusCode::kBadRequest,
+                                    Protocols::SecureChannel::Id, Protocols::SecureChannel::kProtocolCodeGeneralFailure);
+                SuccessOrExit(err);
             }
         }
     }
@@ -323,6 +320,7 @@ CHIP_ERROR InvokeInitiator::Init(Messaging::ExchangeManager *apExchangeMgr, ICom
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     VerifyOrExit(apExchangeMgr != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
+    VerifyOrExit(mpExchangeMgr == nullptr, err = CHIP_ERROR_INCORRECT_STATE);
 
     mpExchangeMgr = apExchangeMgr;
     mHandler = aHandler;
@@ -403,18 +401,9 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
     TLV::TLVReader commandListReader;
     InvokeCommand::Parser invokeCommandParser;
     CommandList::Parser commandListParser;
-    StatusElement::Parser statusElementParser;
 
     VerifyOrExit(mState == kStateAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
     VerifyOrExit(mHandler != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
-
-    //
-    // Close out our exchange first (which will eventually get reclaimed by our caller).
-    // This permits applications using this InvokeInitiator object to then allocate a new exchange 
-    // subsequently on the callback through the delegate if they are doing back to back commands 
-    // on new exchanges with the same inititor object.
-    //
-    CloseExchange();
 
     // Now that we've received the response, move our state back to ready to permit adding commands
     mState = kStateReady;
@@ -457,28 +446,16 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
         SuccessOrExit(commandPath.GetCommandId(&params.CommandId));
         SuccessOrExit(commandPath.GetEndpointId(&params.EndpointId));
 
-        err = commandElement.GetStatusElement(&statusElementParser);
+        err = commandElement.GetData(pReader);
         if (err == CHIP_END_OF_TLV) {
-            err = commandElement.GetData(pReader);
-            SuccessOrExit(err);
-
-            mHandler->HandleResponse(*this, params, pReader);
-        }
-        else {
-            StatusResponse statusResponse;
-            
-            err = statusElementParser.DecodeStatusElement(&statusResponse.generalCode, &statusResponse.protocolId, &statusResponse.protocolCode);
-            SuccessOrExit(err);
-
-            if (!statusResponse.IsError()) {
-                mHandler->HandleResponse(*this, params, nullptr);
-            }
-            else {
-                mHandler->HandleError(*this, &params, CHIP_ERROR_STATUS_REPORT_RECEIVED, &statusResponse);
-            }
+            //HasData = false;
+            err = CHIP_NO_ERROR;
+            pReader = NULL;
         }
 
         SuccessOrExit(err);
+
+        mHandler->HandleResponse(params, *this, pReader);
 
         mState = kStateReady;
     }
@@ -487,18 +464,8 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
         err = CHIP_NO_ERROR;
     }
 
-    mHandler->OnEnd(*this);
-
 exit:
    return; 
-}
-
-void InvokeInitiator::OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext) 
-{
-    if (mHandler) {
-        mHandler->HandleError(*this, NULL, CHIP_ERROR_TIMEOUT, nullptr);
-        mHandler->OnEnd(*this);
-    }
 }
 
 CHIP_ERROR InvokeInitiator::AddSRequest(CommandParams aParams, ISerializable *serializable) 
@@ -529,7 +496,7 @@ exit:
 
 CHIP_ERROR InvokeInitiator::AddSRequestAndSend(CommandParams aParams, ISerializable *serializable) 
 {
-    //ReturnErrorOnFailure(AddSRequest(aParams, serializable));
+    ReturnErrorOnFailure(AddSRequest(aParams, serializable));
     return Send();
 }
 
