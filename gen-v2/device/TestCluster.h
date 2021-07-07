@@ -4,7 +4,10 @@
 #include <array>
 #include <SchemaTypes.h>
 
-namespace chip::app::Cluster::TestCluster {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace TestCluster {
     enum CommandId {
         kCommandAId = 1,
         kCommandBId = 2
@@ -68,9 +71,9 @@ namespace chip::app::Cluster::TestCluster {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
             {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
-            {kFieldIdD, BitFlags(Type::TYPE_ARRAY)
+            {kFieldIdD, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
-            {kFieldIdE, BitFlags(Type::TYPE_ARRAY)
+            {kFieldIdE, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, std::size(StructA::_Schema)}},
         };
     }
@@ -92,7 +95,7 @@ namespace chip::app::Cluster::TestCluster {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
             {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
-            {kFieldIdD, BitFlags(Type::TYPE_ARRAY)
+            {kFieldIdD, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
         };
     }
@@ -116,9 +119,9 @@ namespace chip::app::Cluster::TestCluster {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
             {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
-            {kFieldIdD, BitFlags(Type::TYPE_ARRAY)
+            {kFieldIdD, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
-            {kFieldIdE, BitFlags(Type::TYPE_ARRAY)
+            {kFieldIdE, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, std::size(StructA::_Schema)}},
         };
     }
@@ -145,8 +148,11 @@ namespace chip::app::Cluster::TestCluster {
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB,     {}},
             {kFieldIdC, Type::TYPE_UINT32,          kOptional | kNullable,  FieldC,     {}},
             {kFieldIdD, Type::TYPE_UINT8,           kOptional | kNullable,  FieldD,     {}},
-            {kFieldIdE, BitFlags(Type::TYPE_ARRAY).Set(Type::TYPE_UINT8), kNone,                  FieldF,     {}},
+            {kFieldIdE, BitFlags<Type>(Type::TYPE_ARRAY).Set(Type::TYPE_UINT8), kNone,                  FieldF,     {}},
             {kFieldIdF, Type::TYPE_STRUCT,          kNone,                  FieldE,     {StructB::_Schema, std::size(StructB::_Schema)}},
         };
     }
+}
+}
+}
 }

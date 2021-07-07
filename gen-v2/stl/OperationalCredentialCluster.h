@@ -5,7 +5,10 @@
 #include <SchemaTypes.h>
 #include <core/PeerId.h>
 
-namespace chip::app::Cluster::OperationalCredentialCluster {
+namespace chip {
+namespace app {
+namespace Cluster {
+namespace OperationalCredentialCluster {
     const ClusterId_t kClusterId = 0x003E;
 
     namespace OpCsrRequest {
@@ -28,10 +31,9 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
     namespace AddOpCert {
         enum FieldId {
             kFieldIdNoc = 0,
-            kFieldIdIcaCertificate = 1,
-            kFieldIdIpkValue = 2,
-            kFieldIdCaseAdminNode = 3,
-            kFieldIdAdminVendorId = 4
+            kFieldIdIpkValue = 1,
+            kFieldIdCaseAdminNode = 2,
+            kFieldIdAdminVendorId = 3
         };
     }
 
@@ -42,4 +44,7 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
             kFieldIdDebugText = 2
         };
     }
+}
+}
+}
 }

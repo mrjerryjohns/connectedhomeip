@@ -1834,12 +1834,12 @@ typedef CHIP_CONFIG_ERROR_TYPE CHIP_ERROR;
 #define CHIP_ERROR_DUPLICATE_MESSAGE_RECEIVED                  CHIP_CORE_ERROR(196)
 
 
-#define CHIP_ERROR_DESERIALIZE_NULL_BUF                         _CHIP_CORE_ERROR(197)
+#define CHIP_ERROR_DESERIALIZE_NULL_BUF                         CHIP_CORE_ERROR(197)
 
 
-#define CHIP_ERROR_CLUSTER_NOT_FOUND                            _CHIP_CORE_ERROR(198)
+#define CHIP_ERROR_CLUSTER_NOT_FOUND                            CHIP_CORE_ERROR(198)
 
-#define CHIP_ERROR_STATUS_RESPONSE_RECEIVED                     _CHIP_CORE_ERROR(199)
+#define CHIP_ERROR_STATUS_RESPONSE_RECEIVED                     CHIP_CORE_ERROR(199)
 /**
  *  @}
  */

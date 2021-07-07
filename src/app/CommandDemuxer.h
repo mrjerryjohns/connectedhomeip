@@ -104,7 +104,7 @@ public :
 
        if (!foundMatch) {
            ChipLogProgress(DataManagement, "Could not find a matching demuxed handler for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
-                           params.ClusterId, params.EndpointId, params.CommandId);
+                           params.ClusterId, (unsigned long)params.EndpointId, (unsigned long)params.CommandId);
        }           
    }
 
@@ -131,7 +131,7 @@ private:
         std::function<void (DemuxedInvokeInitiator& invokeInitiator, CommandParams &params, TLV::TLVReader *reader)> onDataClosure; 
         std::function<void (DemuxedInvokeInitiator& invokeInitiator, CHIP_ERROR error, StatusResponse *response)> onErrorFunc;
         ClusterId_t clusterId;
-        uint16_t commandId;
+        chip::CommandId commandId;
     };
 
    InvokeInitiator mInitiator;

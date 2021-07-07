@@ -2,7 +2,10 @@
 #include "core/CHIPTLVTags.h"
 #include "core/CHIPTLVTypes.h"
 
-namespace chip::app::Cluster::TestCluster {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace TestCluster {
     struct ClusterDescriptor ClusterDescriptor = {
         .ClusterId = kClusterId
     };
@@ -314,4 +317,7 @@ namespace chip::app::Cluster::TestCluster {
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
     }
 #endif
+}
+}
+}
 }

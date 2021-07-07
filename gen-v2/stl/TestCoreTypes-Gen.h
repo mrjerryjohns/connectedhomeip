@@ -4,7 +4,10 @@
 #include <type_traits>
 #include "TestCoreTypes.h"
 
-namespace chip::app::Cluster::CoreTypes {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace CoreTypes {
     namespace Time {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;
@@ -20,4 +23,7 @@ namespace chip::app::Cluster::CoreTypes {
                 static const StructDescriptor<NumImplementedFields> &mDescriptor;
         };
     }
+}
+}
+}
 }

@@ -47,6 +47,8 @@ CHIP_ERROR InvokeResponder::Init(Messaging::ExchangeContext *apContext, System::
     mpExchangeCtx = apContext;
     mState = kStateReady;
 
+    IncrementHoldOffRef();
+    
     reader.Init(std::move(aBufferHandle));
 
     err = reader.Next();
@@ -65,7 +67,6 @@ CHIP_ERROR InvokeResponder::Init(Messaging::ExchangeContext *apContext, System::
 
     commandListParser.GetReader(&commandListReader);
 
-    IncrementHoldOffRef();
 
     while (CHIP_NO_ERROR == (err = commandListReader.Next()))
     {
@@ -119,7 +120,7 @@ exit:
 
             if (!foundClusterInstance) {
                 ChipLogProgress(DataManagement, "Could not find a matching server cluster for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
-                                params.ClusterId, params.EndpointId, params.CommandId);
+                                params.ClusterId, (unsigned long)params.EndpointId, (unsigned long)params.CommandId);
 
                 SuccessOrExit((err = CHIP_ERROR_CLUSTER_NOT_FOUND));
 
@@ -134,9 +135,8 @@ exit:
         err = CHIP_NO_ERROR;
     }
 
-    DecrementHoldOffRef();
-    
 exit:
+    DecrementHoldOffRef();
     return err;
 }
 
@@ -395,7 +395,7 @@ exit:
     return err;
 }
 
-void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
+CHIP_ERROR InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeContext, const PacketHeader & aPacketHeader,
                            const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -490,7 +490,7 @@ void InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExchangeC
     mHandler->OnEnd(*this);
 
 exit:
-   return; 
+   return err; 
 }
 
 void InvokeInitiator::OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext) 

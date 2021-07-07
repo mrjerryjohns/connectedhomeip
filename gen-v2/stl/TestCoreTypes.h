@@ -4,7 +4,10 @@
 #include <array>
 #include <SchemaTypes.h>
 
-namespace chip::app::Cluster::CoreTypes {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace CoreTypes {
     namespace Time {
         enum FieldId {
             kFieldSecs = 0,
@@ -19,4 +22,7 @@ namespace chip::app::Cluster::CoreTypes {
             {kFieldNanoSecs, Type::TYPE_UINT8, kNullable,              FieldNanoSecs, {}},
         };
     }
+}
+}
+}
 }

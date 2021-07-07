@@ -121,7 +121,7 @@ exit:
     // This is unfortunate that we're diluting errors returned down to a singular code. We should in-fact, be sending
     // back either IM or Cluster status codes within each of the 'handlers' above.
     //
-    err = invokeInteraction.AddStatusCode(commandParams, Protocols::SecureChannel::GeneralStatusCode::kSuccess, Protocols::InteractionModel::Id, err);
+    err = invokeInteraction.AddStatusCode(commandParams, Protocols::SecureChannel::GeneralStatusCode::kSuccess, Protocols::InteractionModel::Id, (uint16_t)err);
     return err;
 }
 
@@ -218,7 +218,7 @@ CHIP_ERROR NetworkCommissioningServer::AddWifiNetwork(NetworkCommissioningCluste
 exit:
     // TODO: We should encode response command here.
 
-    ChipLogDetail(Zcl, "AddWiFiNetwork: %" PRIu8, err);
+    ChipLogDetail(Zcl, "AddWiFiNetwork: %" PRId32, err);
     return err;
 #else
     // The target does not supports WiFiNetwork.

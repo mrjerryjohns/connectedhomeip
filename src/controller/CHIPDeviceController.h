@@ -555,6 +555,8 @@ private:
 
     DeviceCommissionerRendezvousAdvertisementDelegate mRendezvousAdvDelegate;
 
+    std::unique_ptr<app::DemuxedInvokeInitiator> CreateInitiator(Device *device);
+    
     void PersistDeviceList();
 
     void FreeRendezvousSession();

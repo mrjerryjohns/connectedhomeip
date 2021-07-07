@@ -1,6 +1,9 @@
 #include "TestCluster-Gen.h"
 
-namespace chip::app::Cluster::CoreTypes {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace CoreTypes {
     namespace Time {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};
@@ -21,5 +24,7 @@ namespace chip::app::Cluster::CoreTypes {
 
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
     }
-
+}
+}
+}
 }

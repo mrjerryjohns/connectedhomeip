@@ -4,7 +4,10 @@
 #include <type_traits>
 #include "NetworkCommissioningCluster.h"
 
-namespace chip::app::Cluster::NetworkCommissioningCluster {
+namespace chip {
+namespace app {
+namespace Cluster {
+namespace NetworkCommissioningCluster {
     extern ClusterDescriptor ClusterDescriptor;
 
 #if 0
@@ -81,4 +84,7 @@ namespace chip::app::Cluster::NetworkCommissioningCluster {
                 static const StructDescriptor<NumImplementedFields> &mDescriptor;
         };
     }
+}
+}
+}
 }

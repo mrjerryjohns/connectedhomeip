@@ -3,7 +3,10 @@
 #include "core/CHIPTLVTags.h"
 #include "core/CHIPTLVTypes.h"
 
-namespace chip::app::Cluster::OperationalCredentialCluster {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace OperationalCredentialCluster {
     struct ClusterDescriptor ClusterDescriptor = {
         .ClusterId = kClusterId
     };
@@ -13,7 +16,6 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
             TLV::TLVType outer;
             ReturnErrorOnFailure(writer.StartContainer(tag, TLV::kTLVType_Structure, outer));
             ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdNoc), &noc[0], noc.size()));
-            ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdIcaCertificate), &icaCertificate[0], icaCertificate.size()));
             ReturnErrorOnFailure(writer.PutBytes(TLV::ContextTag(kFieldIdIpkValue), &ipkValue[0], ipkValue.size()));
             ReturnErrorOnFailure(writer.Put(TLV::ContextTag(kFieldIdCaseAdminNode), caseAdminNode));
             ReturnErrorOnFailure(writer.Put(TLV::ContextTag(kFieldIdAdminVendorId), adminVendorId));
@@ -35,10 +37,6 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
                 if (tag == TLV::ContextTag(kFieldIdNoc)) {
                    noc.resize(reader.GetLength());
                    ReturnErrorOnFailure(reader.GetBytes(noc.data(), reader.GetLength()));
-                }
-                else if (tag == TLV::ContextTag(kFieldIdIcaCertificate)) {
-                   icaCertificate.resize(reader.GetLength());
-                   ReturnErrorOnFailure(reader.GetBytes(icaCertificate.data(), reader.GetLength()));
                 }
                 else if (tag == TLV::ContextTag(kFieldIdIpkValue)) {
                    ipkValue.resize(reader.GetLength());
@@ -185,4 +183,7 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
             return CHIP_NO_ERROR;
         }
     }
+}
+}
+}
 }

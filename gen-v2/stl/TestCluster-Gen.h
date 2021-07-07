@@ -6,7 +6,10 @@
 #include <vector>
 #include <string>
 
-namespace chip::app::Cluster::TestCluster {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace TestCluster {
     extern ClusterDescriptor ClusterDescriptor;
     constexpr ClusterId_t kClusterId = 0x000000001;
 
@@ -117,4 +120,7 @@ namespace chip::app::Cluster::TestCluster {
         };
     }
 #endif
+}
+}
+}
 }

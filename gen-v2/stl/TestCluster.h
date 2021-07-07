@@ -4,7 +4,10 @@
 #include <array>
 #include <SchemaTypes.h>
 
-namespace chip::app::Cluster::TestCluster {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace TestCluster {
     enum CommandId {
         kCommandAId = 1,
         kCommandBId = 2
@@ -66,4 +69,7 @@ namespace chip::app::Cluster::TestCluster {
             kFieldIdF = 5
         };
     }
+}
+}
+}
 }

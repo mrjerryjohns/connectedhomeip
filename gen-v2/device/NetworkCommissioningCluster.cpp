@@ -1,6 +1,9 @@
 #include "NetworkCommissioningCluster-Gen.h"
 
-namespace chip::app::Cluster::NetworkCommissioningCluster {
+namespace chip {
+namespace app {
+namespace Cluster { 
+namespace NetworkCommissioningCluster {
     struct ClusterDescriptor ClusterDescriptor = {
         .ClusterId = kClusterId
     };
@@ -71,4 +74,7 @@ namespace chip::app::Cluster::NetworkCommissioningCluster {
 
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
     }
+}
+}
+}
 }

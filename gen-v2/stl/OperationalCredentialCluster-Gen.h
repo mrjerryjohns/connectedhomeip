@@ -6,12 +6,14 @@
 #include <vector>
 #include <string>
 
-namespace chip::app::Cluster::OperationalCredentialCluster {
+namespace chip {
+namespace app {
+namespace Cluster {
+namespace OperationalCredentialCluster {
     namespace AddOpCert {
         class Type : public ISerializable {
             public:
                 std::vector<uint8_t> noc;
-                std::vector<uint8_t> icaCertificate;
                 std::vector<uint8_t> ipkValue;
                 chip::NodeId caseAdminNode;
                 int16_t adminVendorId;
@@ -78,4 +80,7 @@ namespace chip::app::Cluster::OperationalCredentialCluster {
                 CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
+}
+}
+}
 }

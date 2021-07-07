@@ -4,7 +4,10 @@
 #include <array>
 #include <SchemaTypes.h>
 
-namespace chip::app::Cluster::NetworkCommissioningCluster {
+namespace chip {
+namespace app {
+namespace Cluster {
+namespace NetworkCommissioningCluster {
     constexpr ClusterId_t kClusterId = 0x0031;
 
     enum CommandId {
@@ -123,4 +126,7 @@ namespace chip::app::Cluster::NetworkCommissioningCluster {
             {kTimeoutMsFieldId,             BitFlags(Type::TYPE_UINT32),      kNone,   0,       {}} 
         };
     };
+}
+}
+}
 }

@@ -1187,29 +1187,23 @@ void DeviceCommissioner::OnSessionEstablished()
 
 CHIP_ERROR DeviceCommissioner::SendOperationalCertificateSigningRequestCommand(Device * device)
 {
+    chip::app::Cluster::OperationalCredentialCluster::OpCsrRequest::Type req;
+
     ChipLogDetail(Controller, "Sending OpCSR request to %p device", device);
+    
+    auto pInitiator = CreateInitiator(device);
+    VerifyOrReturnError(pInitiator.get() != nullptr, CHIP_ERROR_INTERNAL);
 
-    VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    chip::ByteSpan nonce = device->GetCSRNonce();
+    req.csrNonce.assign(nonce.data(), nonce.data() + nonce.size());
 
-    {    
-        chip::app::Cluster::OperationalCredentialCluster::OpCsrRequest::Type req;
+    auto onSuccess = std::bind(&DeviceCommissioner::OnOperationalCertificateSigningRequest, this, _1, _2, _3);
+    auto onError = std::bind(&DeviceCommissioner::OnCSRFailureResponse, this, _1, _2, _3);
 
-        req.csrNonce.resize(kOpCSRNonceLength);
-		device->GetCSRNonce;
-        ReturnErrorOnFailure(Crypto::DRBG_get_bytes(req.csrNonce.data(), req.csrNonce.size()));
-        
-        auto onDone = std::bind(&DeviceCommissioner::OnInvokeDone, this, _1);
-        auto onSuccess = std::bind(&DeviceCommissioner::OnOperationalCertificateSigningRequest, this, _1, _2, _3);
-        auto onError = std::bind(&DeviceCommissioner::OnCSRFailureResponse, this, _1, _2, _3);
+    ReturnErrorOnFailure(pInitiator->AddCommand<chip::app::Cluster::OperationalCredentialCluster::OpCsrResponse::Type>(&req, app::CommandParams(req, 0), onSuccess, onError));
+    ReturnErrorOnFailure(pInitiator->Send());
 
-        SecureSessionHandle handle = device->GetSessionHandle();
-        std::unique_ptr<app::DemuxedInvokeInitiator> invokeInitiator = std::make_unique<app::DemuxedInvokeInitiator>(onDone);
-        ReturnErrorOnFailure(invokeInitiator->Init(mExchangeMgr, device->GetDeviceId(), 0, &handle));
-        ReturnErrorOnFailure(invokeInitiator->AddCommand<chip::app::Cluster::OperationalCredentialCluster::OpCsrResponse::Type>(&req, app::CommandParams(req, 0), onSuccess, onError));
-        ReturnErrorOnFailure(invokeInitiator->Send());
-
-        mDemuxedInvokeInitiatorList.push_back(std::move(invokeInitiator));
-    }
+    mDemuxedInvokeInitiatorList.push_back(std::move(pInitiator));
 
     ChipLogDetail(Controller, "Sent OpCSR request, waiting for the CSR");
     return CHIP_NO_ERROR;
@@ -1287,8 +1281,8 @@ CHIP_ERROR DeviceCommissioner::ProcessOpCSR(const chip::app::Cluster::Operationa
 
     // Verify that Nonce matches with what we sent
     const ByteSpan nonce = device->GetCSRNonce();
-    VerifyOrReturnError(CSRNonce.size() == nonce.size(), CHIP_ERROR_INVALID_ARGUMENT);
-    VerifyOrReturnError(memcmp(CSRNonce.data(), nonce.data(), CSRNonce.size()) == 0, CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(resp.csrNonce.size() == nonce.size(), CHIP_ERROR_INVALID_ARGUMENT);
+    VerifyOrReturnError(memcmp(resp.csrNonce.data(), nonce.data(), resp.csrNonce.size()) == 0, CHIP_ERROR_INVALID_ARGUMENT);
 
     chip::Platform::ScopedMemoryBuffer<uint8_t> chipOpCert;
     ReturnErrorCodeIf(!chipOpCert.Alloc(kMaxCHIPCertLength * 2), CHIP_ERROR_NO_MEMORY);
@@ -1296,8 +1290,8 @@ CHIP_ERROR DeviceCommissioner::ProcessOpCSR(const chip::app::Cluster::Operationa
     // TODO: Send DAC as input parameter to GenerateNodeOperationalCertificate()
     //       This will be done when device attestation is implemented.
     ReturnErrorOnFailure(mOperationalCredentialsDelegate->GenerateNodeOperationalCertificate(
-        PeerId().SetNodeId(device->GetDeviceId()), CSR, 1, opCert.Get(), kMaxCHIPOpCertLength, opCertLen));
-
+            Optional<NodeId>(device->GetDeviceId()), 0, chip::ByteSpan{resp.csr.data(), resp.csr.size()}, ByteSpan(), &mDeviceNOCCallback));
+    
     return CHIP_NO_ERROR;
 }
 
@@ -1319,30 +1313,43 @@ void DeviceCommissioner::OnInvokeDone(app::DemuxedInvokeInitiator &demuxedInitia
     }
 }
 
+std::unique_ptr<app::DemuxedInvokeInitiator> DeviceCommissioner::CreateInitiator(Device *device)
+{
+    std::unique_ptr<app::DemuxedInvokeInitiator> pInitiator;
+
+    if (device == nullptr) {
+        return pInitiator;
+    }
+
+    SecureSessionHandle handle = device->GetSessionHandle();
+    auto onDone = std::bind(&DeviceCommissioner::OnInvokeDone, this, _1);
+    pInitiator = std::make_unique<app::DemuxedInvokeInitiator>(onDone);
+
+    if (pInitiator->Init(mExchangeMgr, device->GetDeviceId(), 0, &handle) != CHIP_NO_ERROR) {
+        (void)pInitiator.release();
+    }
+
+    return pInitiator;
+}
+
 CHIP_ERROR DeviceCommissioner::SendOperationalCertificate(Device * device, const ByteSpan & opCertBuf)
 {
-    VerifyOrReturnError(device != nullptr, CHIP_ERROR_INVALID_ARGUMENT);
+    chip::app::Cluster::OperationalCredentialCluster::AddOpCert::Type req;
 
-    {    
-        chip::app::Cluster::OperationalCredentialCluster::AddOpCert::Type req;
-        SecureSessionHandle handle = device->GetSessionHandle();
+    auto pInitiator = CreateInitiator(device);
+    VerifyOrReturnError(pInitiator.get() != nullptr, CHIP_ERROR_INTERNAL);
 
-        req.noc.assign(opCertBuf.data(), opCertBuf.data() + opCertBuf.size());
-        req.icaCertificate.assign(icaCertBuf.data(), icaCertBuf.data() + icaCertBuf.size());
-        req.caseAdminNode = mLocalDeviceId;
-        req.adminVendorId = 0;
+    req.noc.assign(opCertBuf.data(), opCertBuf.data() + opCertBuf.size());
+    req.caseAdminNode = mLocalDeviceId;
+    req.adminVendorId = 0;
 
-        auto onDone = std::bind(&DeviceCommissioner::OnInvokeDone, this, _1);
-        auto onSuccess = std::bind(&DeviceCommissioner::OnOperationalCertificateAddResponse, this, _1, _2);
-        auto onError = std::bind(&DeviceCommissioner::OnAddOpCertFailureResponse, this, _1, _2, _3);
+    auto onSuccess = std::bind(&DeviceCommissioner::OnOperationalCertificateAddResponse, this, _1, _2);
+    auto onError = std::bind(&DeviceCommissioner::OnAddOpCertFailureResponse, this, _1, _2, _3);
 
-        std::unique_ptr<app::DemuxedInvokeInitiator> invokeInitiator = std::make_unique<app::DemuxedInvokeInitiator>(onDone);
-        ReturnErrorOnFailure(invokeInitiator->Init(mExchangeMgr, device->GetDeviceId(), 0, &handle));
-        ReturnErrorOnFailure(invokeInitiator->AddCommand(&req, app::CommandParams(req, 0), onSuccess, onError));
-        ReturnErrorOnFailure(invokeInitiator->Send());
+    ReturnErrorOnFailure(pInitiator->AddCommand(&req, app::CommandParams(req, 0), onSuccess, onError));
+    ReturnErrorOnFailure(pInitiator->Send());
 
-        mDemuxedInvokeInitiatorList.push_back(std::move(invokeInitiator));
-    }
+    mDemuxedInvokeInitiatorList.push_back(std::move(pInitiator));
 
     return CHIP_NO_ERROR;
 }
