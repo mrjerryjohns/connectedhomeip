@@ -76,7 +76,7 @@ public :
         };
 
         mHandlers.push_back({onDataClosure, onErrorFunc, T::GetClusterId(), T::GetCommandId()});
-        return mInitiator.AddSRequest(params, request);
+        return mInitiator.AddRequest(params, request);
    }
 
    CHIP_ERROR AddCommand(ISerializable *request, CommandParams params,
@@ -87,18 +87,18 @@ public :
         };
 
         mHandlers.push_back({onDataClosure, onErrorFunc, params.ClusterId, params.CommandId});
-        return mInitiator.AddSRequest(params, request);
+        return mInitiator.AddRequest(params, request);
    }
    
    ~DemuxedInvokeInitiator() {}
 
-   void HandleResponse(InvokeInitiator &initiator, CommandParams &params, TLV::TLVReader *payload) final {
+   void OnResponse(InvokeInitiator &initiator, CommandParams &params, TLV::TLVReader *payload) final {
        bool foundMatch = false;
 
        for (auto iter : mHandlers) {
            if (iter.clusterId == params.ClusterId && iter.commandId == params.CommandId) {
                iter.onDataClosure(*this, params, payload);
-               foundMatch = true;
+               return;
            }
        }
 
@@ -108,10 +108,11 @@ public :
        }           
    }
 
-   void HandleError(InvokeInitiator &initiator, CommandParams *params, CHIP_ERROR error, StatusResponse *statusResponse) final {
+   void OnError(InvokeInitiator &initiator, CommandParams *params, CHIP_ERROR error, StatusResponse *statusResponse) final {
        for (auto iter : mHandlers) {
            if ((params && (iter.clusterId == params->ClusterId && iter.commandId == params->CommandId)) || (!params)) {
                iter.onErrorFunc(*this, error, statusResponse);
+               return;
            }
        }
    }

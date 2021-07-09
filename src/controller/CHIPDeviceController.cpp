@@ -1192,7 +1192,7 @@ CHIP_ERROR DeviceCommissioner::SendOperationalCertificateSigningRequestCommand(D
     ChipLogDetail(Controller, "Sending OpCSR request to %p device", device);
     
     auto pInitiator = CreateInitiator(device);
-    VerifyOrReturnError(pInitiator.get() != nullptr, CHIP_ERROR_INTERNAL);
+    VerifyOrReturnError(pInitiator != nullptr, CHIP_ERROR_INTERNAL);
 
     chip::ByteSpan nonce = device->GetCSRNonce();
     req.csrNonce.assign(nonce.data(), nonce.data() + nonce.size());
@@ -1203,6 +1203,10 @@ CHIP_ERROR DeviceCommissioner::SendOperationalCertificateSigningRequestCommand(D
     ReturnErrorOnFailure(pInitiator->AddCommand<chip::app::Cluster::OperationalCredentialCluster::OpCsrResponse::Type>(&req, app::CommandParams(req, 0), onSuccess, onError));
     ReturnErrorOnFailure(pInitiator->Send());
 
+    //
+    // Move it into the invoke to be tracked for eventual deletion and release
+    // when the invoke is done
+    //
     mDemuxedInvokeInitiatorList.push_back(std::move(pInitiator));
 
     ChipLogDetail(Controller, "Sent OpCSR request, waiting for the CSR");
@@ -1297,8 +1301,6 @@ CHIP_ERROR DeviceCommissioner::ProcessOpCSR(const chip::app::Cluster::Operationa
 
 void DeviceCommissioner::OnInvokeDone(app::DemuxedInvokeInitiator &demuxedInitiator)
 {
-    printf("OnInvokeDone\n");
-
     //
     // This method gets invoked when all work has completed on the invoke object, at which point, we can free up the object.
     // Track it down in our list, and approriately release it.
@@ -1308,7 +1310,6 @@ void DeviceCommissioner::OnInvokeDone(app::DemuxedInvokeInitiator &demuxedInitia
     });
 
     if (it != mDemuxedInvokeInitiatorList.end()) {
-        printf("Erasing!\n");
         mDemuxedInvokeInitiatorList.erase(it); 
     }
 }

@@ -47,6 +47,10 @@ CHIP_ERROR InvokeResponder::Init(Messaging::ExchangeContext *apContext, System::
     mpExchangeCtx = apContext;
     mState = kStateReady;
 
+    //
+    // Increment the hold off to prevent transmission of any queued up responses till we've
+    // aggregated them all.
+    //
     IncrementHoldOffRef();
     
     reader.Init(std::move(aBufferHandle));
@@ -67,7 +71,6 @@ CHIP_ERROR InvokeResponder::Init(Messaging::ExchangeContext *apContext, System::
 
     commandListParser.GetReader(&commandListReader);
 
-
     while (CHIP_NO_ERROR == (err = commandListReader.Next()))
     {
         CommandParams params;
@@ -75,7 +78,6 @@ CHIP_ERROR InvokeResponder::Init(Messaging::ExchangeContext *apContext, System::
         CommandPath::Parser commandPath;
         TLV::TLVReader dataReader;
         TLV::TLVReader *pReader = &dataReader;
-        //bool HasData = true;
 
         VerifyOrExit(chip::TLV::AnonymousTag == commandListReader.GetTag(), err = CHIP_ERROR_INVALID_TLV_TAG);
         VerifyOrExit(chip::TLV::kTLVType_Structure == commandListReader.GetType(), err = CHIP_ERROR_WRONG_TLV_TYPE);
@@ -90,7 +92,6 @@ CHIP_ERROR InvokeResponder::Init(Messaging::ExchangeContext *apContext, System::
 
         err = commandElement.GetData(pReader);
         if (err == CHIP_END_OF_TLV) {
-            //HasData = false;
             err = CHIP_NO_ERROR;
             pReader = NULL;
         }
@@ -104,24 +105,30 @@ CHIP_ERROR InvokeResponder::Init(Messaging::ExchangeContext *apContext, System::
                 if ((*s)->GetClusterId() == params.ClusterId && (*s)->GetEndpoint() == params.EndpointId) {
                     foundClusterInstance = true;
 
-                    err = (*s)->HandleRequest(params, *this, pReader);
+                    err = (*s)->OnInvokeRequest(params, *this, pReader);
                     SuccessOrExit(err);
 
-                    return true;
+                    return false;
                 }
 
-exit:
+            exit:
                 if (err != CHIP_NO_ERROR) {
                     return true;
                 }
 
-                return false;
+                return true;
             });
 
             if (!foundClusterInstance) {
                 ChipLogProgress(DataManagement, "Could not find a matching server cluster for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
                                 params.ClusterId, (unsigned long)params.EndpointId, (unsigned long)params.CommandId);
 
+                //
+                // To permit a gradual transition away from the legacy Ember approach of handling commands, we need a way to 'fall-back' to the legacy approach
+                // if we don't find a registered ClusterServer object. Returning a very specific error code here from this command signals to the caler to 
+                // switch back to the legacy call flow.
+                //
+                // TODO: Remove this once all legacy callers have moved over to the new model. In turn, re-enable the status report dispatch path below.
                 SuccessOrExit((err = CHIP_ERROR_CLUSTER_NOT_FOUND));
 
                 // err = AddStatusCode(params, Protocols::SecureChannel::GeneralStatusCode::kBadRequest,
@@ -136,37 +143,36 @@ exit:
     }
 
 exit:
+    //
+    // Decrement hold-off, and if zero, fire off any queued up responses and 
+    // shut outselves down.
+    //
     DecrementHoldOffRef();
     return err;
 }
 
-CHIP_ERROR InvokeResponder::AddSRequestAndSend(CommandParams aParams, ISerializable *serializable)
+CHIP_ERROR InvokeResponder::AddResponse(CommandParams aParams, ISerializable *serializable)
 {
-        CHIP_ERROR err = CHIP_NO_ERROR;
+    CHIP_ERROR err = CHIP_NO_ERROR;
 
-        IncrementHoldOffRef();
+    err = StartCommandHeader(aParams);
+    SuccessOrExit(err);
 
-        err = StartCommandHeader(aParams);
-        SuccessOrExit(err);
+    // 
+    // Invoke the passed in closure that will actually write out the command payload if any
+    //
+    err = serializable->Encode(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
+    SuccessOrExit(err);
 
-        // 
-        // Invoke the passed in closure that will actually write out the command payload if any
-        //
-        err = serializable->Encode(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
-        SuccessOrExit(err);
-
-        mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
-        SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
-
-        DecrementHoldOffRef();
+    mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
+    SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
 
 exit:
-        return err;
+    return err;
 }
 
-CHIP_ERROR InvokeResponder::AddStatusCode(const CommandParams &aParams, 
-                             const Protocols::SecureChannel::GeneralStatusCode aGeneralCode,
-                             const Protocols::Id aProtocolId, const uint16_t aProtocolCode)
+CHIP_ERROR InvokeResponder::AddStatusCode(const CommandParams &aParams, const StatusResponse &statusResponse)
+                             
 {
     CHIP_ERROR err;
     StatusElement::Builder statusBuilder;
@@ -179,7 +185,7 @@ CHIP_ERROR InvokeResponder::AddStatusCode(const CommandParams &aParams,
     SuccessOrExit(err);
 
     statusBuilder = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().CreateStatusElementBuilder();
-    statusBuilder.EncodeStatusElement(aGeneralCode, aProtocolId.ToFullyQualifiedSpecForm(), aProtocolCode).EndOfStatusElement();
+    statusBuilder.EncodeStatusElement(statusResponse.generalCode, statusResponse.protocolId.ToFullyQualifiedSpecForm(), statusResponse.protocolCode).EndOfStatusElement();
 
     err = statusBuilder.GetError();
     SuccessOrExit(err);
@@ -231,6 +237,27 @@ exit:
     return err;
 }
 
+CHIP_ERROR InvokeResponder::Shutdown()
+{
+    if (mpExchangeCtx) {
+        mpExchangeCtx->Close();
+        mpExchangeCtx = nullptr;
+    }
+
+    mState = kStateReleased;
+    
+    //DeviceLayer::PlatformMgr().ScheduleWork(InteractionModelEngine::FreeReleasedInvokeResponderObjects, (intptr_t)InteractionModelEngine::GetInstance());
+
+    //
+    // Call into our parent encapsulating entity to free ourselves up.
+    // This may seem contrived, but fundamentally, our parent does not have sufficient knowledge to knwo when this object can be destroyed,
+    // only because of the ability to support async. command responses. Otherwise, on completion of the call to Init, all work would have been
+    // done and the parent entity would have destroyed this object.
+    //
+    InteractionModelEngine::FreeReleasedInvokeResponderObjects((intptr_t)InteractionModelEngine::GetInstance());
+    return CHIP_NO_ERROR;
+}
+
 void InvokeResponder::IncrementHoldOffRef()
 {
   assert(mHoldOffCount >= 0);
@@ -246,7 +273,6 @@ void InvokeResponder::DecrementHoldOffRef()
     assert(mHoldOffCount > 0);
     mHoldOffCount--;
 
-    
     if (mHoldOffCount == 0) {
         if (mWriter.HasBuffer()) {
             System::PacketBufferHandle buf;
@@ -258,8 +284,7 @@ void InvokeResponder::DecrementHoldOffRef()
             SuccessOrExit(err);
         }
 
-        mState = kStateReleased;
-        DeviceLayer::PlatformMgr().ScheduleWork(InteractionModelEngine::FreeReleasedInvokeResponderObjects, (intptr_t)InteractionModelEngine::GetInstance());
+        Shutdown();
     }
 
 exit:
@@ -462,19 +487,22 @@ CHIP_ERROR InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExc
             err = commandElement.GetData(pReader);
             SuccessOrExit(err);
 
-            mHandler->HandleResponse(*this, params, pReader);
+            mHandler->OnResponse(*this, params, pReader);
         }
         else {
             StatusResponse statusResponse;
+            uint32_t protocolId;
             
-            err = statusElementParser.DecodeStatusElement(&statusResponse.generalCode, &statusResponse.protocolId, &statusResponse.protocolCode);
+            err = statusElementParser.DecodeStatusElement(&statusResponse.generalCode, &protocolId, &statusResponse.protocolCode);
             SuccessOrExit(err);
 
+            statusResponse.protocolId = Protocols::Id((chip::VendorId)((protocolId & 0xff00) >> 16), protocolId & 0xffff);
+
             if (!statusResponse.IsError()) {
-                mHandler->HandleResponse(*this, params, nullptr);
+                mHandler->OnResponse(*this, params, nullptr);
             }
             else {
-                mHandler->HandleError(*this, &params, CHIP_ERROR_STATUS_REPORT_RECEIVED, &statusResponse);
+                mHandler->OnError(*this, &params, CHIP_ERROR_STATUS_REPORT_RECEIVED, &statusResponse);
             }
         }
 
@@ -487,21 +515,27 @@ CHIP_ERROR InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExc
         err = CHIP_NO_ERROR;
     }
 
-    mHandler->OnEnd(*this);
-
 exit:
+   //
+   // We're done with this object now. Let's signal the application to indicate the completion
+   // of this interaction.
+   //
+   mHandler->OnEnd(*this);
+   mHandler = nullptr;
+
    return err; 
 }
 
 void InvokeInitiator::OnResponseTimeout(Messaging::ExchangeContext * apExchangeContext) 
 {
     if (mHandler) {
-        mHandler->HandleError(*this, NULL, CHIP_ERROR_TIMEOUT, nullptr);
+        mHandler->OnError(*this, NULL, CHIP_ERROR_TIMEOUT, nullptr);
         mHandler->OnEnd(*this);
+        mHandler = nullptr;
     }
 }
 
-CHIP_ERROR InvokeInitiator::AddSRequest(CommandParams aParams, ISerializable *serializable) 
+CHIP_ERROR InvokeInitiator::AddRequest(CommandParams aParams, ISerializable *serializable) 
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -524,13 +558,31 @@ CHIP_ERROR InvokeInitiator::AddSRequest(CommandParams aParams, ISerializable *se
     SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
 
 exit:
+    if (err != CHIP_NO_ERROR && mHandler) {
+        mHandler->OnEnd(*this);
+        mHandler = nullptr;
+    }
+
     return err;
 }
 
-CHIP_ERROR InvokeInitiator::AddSRequestAndSend(CommandParams aParams, ISerializable *serializable) 
+CHIP_ERROR InvokeInitiator::AddRequestAndSend(CommandParams aParams, ISerializable *serializable) 
 {
-    //ReturnErrorOnFailure(AddSRequest(aParams, serializable));
-    return Send();
+    CHIP_ERROR err;
+
+    err = AddRequest(aParams, serializable);
+    SuccessOrExit(err);
+
+    err = Send();
+    SuccessOrExit(err);
+
+exit:
+    if (err != CHIP_NO_ERROR && mHandler) {
+        mHandler->OnEnd(*this);
+        mHandler = nullptr;
+    }
+
+    return err;
 }
 
 CHIP_ERROR InvokeInitiator::Send()
@@ -554,6 +606,11 @@ CHIP_ERROR InvokeInitiator::Send()
     }
 
 exit:
+    if (err != CHIP_NO_ERROR && mHandler) {
+        mHandler->OnEnd(*this);
+        mHandler = nullptr;
+    }
+    
     return err;
 }
 

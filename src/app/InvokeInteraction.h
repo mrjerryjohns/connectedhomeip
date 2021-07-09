@@ -18,8 +18,8 @@
 
 /**
  *    @file
- *      This file defines Base class for a CHIP IM Command
- *
+ *      This file defines a set of classes that applications can use to initiate and respond to
+ *      IM commands.
  */
 
 #pragma once
@@ -48,17 +48,23 @@
 namespace chip {
 namespace app {
 
+/*
+ * @brief
+ *
+ * This class encapsulates the data that goes into a status response message.
+ */
 struct StatusResponse {
 public:
     bool IsError() { return generalCode != Protocols::SecureChannel::GeneralStatusCode::kSuccess; }
     Protocols::SecureChannel::GeneralStatusCode generalCode = Protocols::SecureChannel::GeneralStatusCode::kSuccess;
-    uint32_t protocolId = 0;
+    Protocols::Id protocolId = Protocols::Id(Common, 0);
     uint16_t protocolCode = 0;
 };
 
 /**
- * Encapsulates arguments to be passed into SendCommand().
+ * @brief
  *
+ * Encapsulates parameters that go into the header of an IM Invoke Request or Response message.
  */
 struct CommandParams
 {
@@ -86,95 +92,101 @@ struct CommandParams
     bool ExpectsResponses = false;
 };
 
-class InvokeResponder
-{
-public:
-    CHIP_ERROR Init(Messaging::ExchangeContext *apContext, System::PacketBufferHandle &&aBufferHandle);
-
-    enum State
-    {
-        kStateReady = 0,
-        kStateReleased = 1
-    };
-
-    class CommandHandler
-    {
-    public:
-        virtual CHIP_ERROR HandleRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload) = 0;
-        virtual ~CommandHandler() {} 
-    };
-
-    CHIP_ERROR AddSRequestAndSend(CommandParams aParams, ISerializable *serializable);
-    
-    template <typename F>
-    CHIP_ERROR AddResponse(CommandParams aParams, F f) {
-        CHIP_ERROR err = CHIP_NO_ERROR;
-
-        IncrementHoldOffRef();
-
-        err = StartCommandHeader(aParams);
-        SuccessOrExit(err);
-
-        // 
-        // Invoke the passed in closure that will actually write out the command payload if any
-        //
-        err = f(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
-        SuccessOrExit(err);
-
-        mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
-        SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
-
-        DecrementHoldOffRef();
-
-exit:
-        return err;
-    }
-
-    CHIP_ERROR AddStatusCode(const CommandParams &aParams, const Protocols::SecureChannel::GeneralStatusCode aGeneralCode,
-                             const Protocols::Id aProtocolId, const uint16_t aProtocolCode);
-
-    void IncrementHoldOffRef();
-    void DecrementHoldOffRef();
-
-private:
-    Messaging::ExchangeContext *GetExchangeContext() { return mpExchangeCtx; }
-    CHIP_ERROR FinalizeMessage(System::PacketBufferHandle &aBuf);
-    CHIP_ERROR SendMessage(System::PacketBufferHandle aBuf);
-    friend class InteractionModelEngine;
-
-private:
-    int mHoldOffCount = 0;
-    State mState;
-    friend class TestInvokeInteraction;
-    CHIP_ERROR StartCommandHeader(const CommandParams &aParams);
-    app::InvokeCommand::Builder mInvokeCommandBuilder;
-    chip::System::PacketBufferTLVWriter mWriter;
-    Messaging::ExchangeContext *mpExchangeCtx = nullptr;
-};
-    
+/*
+ * @brief
+ *
+ * This class represents an invoke interaction from the initiating side (i.e on the client). An instance of this class maps to a specific
+ * invoke interaction over the wire. Consequently, the lifetime of this object is limited to a SINGLE interaction backed by a SINGLE exchange context.
+ *
+ * This object permits a single request + response. It does not permit multiple responses to be sequenced in order.
+ * 
+ * It provides a number of overloaded methods that permit adding multiple command payloads into the message.
+ *
+ * It also provides a means to register callbacks on receipt of responses or errors to the originating invoke request.
+ */
 class InvokeInitiator : chip::Messaging::ExchangeDelegate
 {
 public:
-    enum State
-    {
-        kStateReady = 0,           //< The invoke command message has been initialized and is ready
-        kStateAwaitingResponse = 1,
-    };
-
+    /*
+     * @brief
+     *
+     * An interface that applications implement to handle events that occur during the lifetime of an invoke interaction, including
+     * responses and errors.
+     */
     class ICommandHandler
     {
     public:
-        virtual void HandleResponse(InvokeInitiator &invokeInteraction, CommandParams &commandParams, TLV::TLVReader *payload) = 0;
-        virtual void HandleError(InvokeInitiator &invokeInteration, CommandParams *aPath, CHIP_ERROR error, StatusResponse *statusResponse) = 0;
+        /*
+         * @brief
+         *
+         * Called to handle a data element present within an Invoke Response message.
+         *
+         * @param invokeInteraction         A reference to the invoke interaction instance that corresponds to the invoke response being processed.
+         * @param commandParams             A reference to an object containing the parameters of the command response.
+         * @param payload                   If a data payload is present, a TLV reader positioned at that payload is provided. The reader 
+         *                                  shall not be assumed to exist past this call, so the application should save off the data if they desire to.
+         */
+        virtual void OnResponse(InvokeInitiator &invokeInteraction, CommandParams &commandParams, TLV::TLVReader *payload) = 0;
+
+        /*
+         * @brief
+         *
+         * Called to handle any asynchronously generated errors (exchange timeout, non-success status reports, etc) on the invoke interaction.
+         *
+         * @param invokeInteraction         A reference to the invoke interaction instance that corresponds to the invoke response being processed.
+         * @param commandParams             If the error is specific to a particular command, a pointer to a command parameter object shall be provided. Otherwise,
+         *                                  this SHALL be null.
+         * @param error                     A CHIP_ERROR containing the high-level error that occurred.
+         * @param statusResponse            If a status response was received, CHIP_ERROR shall be set to CHIP_ERROR_STATUS_RESPONSE_RECEIVED and this argument SHALL
+         *                                  be valid and non-null.
+         */
+        virtual void OnError(InvokeInitiator &invokeInteration, CommandParams *aPath, CHIP_ERROR error, StatusResponse *statusResponse) = 0;
+
+        /*
+         * @brief
+         *
+         * When the interaction has completed, this method is invoked to give the application the chance to reclaim this object if needed.
+         * This is invoked regardless of whether it was a successful completion or an erroneous one. In the latter case, the `OnError` method above will
+         * be invoked first before the below is invoked.
+         *
+         * This method will be invoked anytime after the Init() method has been called on this object.
+         *
+         *
+         * @param invokeInteraction         A reference to the invoke interaction instance that correponds to the invoke response being processed.
+         * @param commandParams             If the error is specific to a particular command, a pointer to a command parameter object shall be provided. Otherwise,
+         *                                  this SHALL be null.
+         * @param error                     A CHIP_ERROR containing the high-level error that occurred.
+         * @param statusResponse            If a status response was received, CHIP_ERROR shall be set to CHIP_ERROR_STATUS_RESPONSE_RECEIVED and this argument SHALL
+         *                                  be valid and non-null.
+         */
         virtual void OnEnd(InvokeInitiator &invokeInteration) = 0;
         virtual ~ICommandHandler() {}
     };
 
+    /*
+     * @brief
+     *
+     * Initializes the object with a destination NodeId + AdminId pair OR a secure session handle.
+     *
+     */
     CHIP_ERROR Init(Messaging::ExchangeManager *apExchangeMgr, ICommandHandler *aHandler, NodeId aNodeId, Transport::AdminId aAdminId, SecureSessionHandle * secureSession);
 
-    CHIP_ERROR AddSRequestAndSend(CommandParams aParams, ISerializable *serializable);
-    CHIP_ERROR AddSRequest(CommandParams aParams, ISerializable *serializable);
-    
+    /*
+     * @brief
+     *
+     * Encodes an invoke request into the larger invoke message. This method takes an encodable object and command parameters and
+     * writes that into an opened packet buffer.
+     *
+     */
+    CHIP_ERROR AddRequest(CommandParams aParams, ISerializable *serializable);
+   
+    /*
+     * @brief
+     *
+     * Encodes an invoke request into the larger invoke message. This method does so by accepting a generic lambda that is then
+     * invoked immediately with a TLVWriter + TLV tag passed in. The writer is positioned within the command's payload.
+     *
+     */
     template <class F>
     CHIP_ERROR AddRequest(CommandParams aParams, F f) {
         CHIP_ERROR err = CHIP_NO_ERROR;
@@ -201,16 +213,49 @@ exit:
         return err;
     }
 
+    /*
+     * @brief
+     *
+     * In addition to encoding in the encodable object, this also immediately sends the message.
+     *
+     * This is equivalent to calling AddRequest and Send in succession.
+     *
+     */
+    CHIP_ERROR AddRequestAndSend(CommandParams aParams, ISerializable *serializable);
+   
+    /*
+     * @brief
+     *
+     * In addition to encoding in the invoke request by calling the provided lambda, this also immediately sends the message.
+     *
+     * This is equivalent to calling AddRequest and Send in succession.
+     *
+     */
     template <class F>
     CHIP_ERROR AddRequestAndSend(CommandParams aParams, F f) {
         ReturnErrorOnFailure(AddRequest(aParams, f));
         return Send();
     }
 
+    /*
+     * @brief
+     *
+     * If any invokes have been written into the message, this closes up the packet buffer and sends the message.
+     * There-after, AddRequest and Send cannot be called again on this object.
+     *
+     */
     CHIP_ERROR Send();
+
     Messaging::ExchangeContext *GetExchange() { return mpExchangeCtx; }
    
 private:
+    enum State
+    {
+        kStateReady = 0,           //< The invoke command message has been initialized and is ready
+        kStateAwaitingResponse = 1,
+    };
+
+    
     CHIP_ERROR StartCommandHeader(const CommandParams &aParams);
     void CloseExchange();
 
@@ -241,6 +286,147 @@ private:
     Messaging::ExchangeManager *mpExchangeMgr = nullptr;
     Messaging::ExchangeContext *mpExchangeCtx = nullptr;
 };
+
+/*
+ * @brief
+ *
+ * This class represents an invoke interaction from the responding side (i.e on the server). An instance of this class maps to a specific
+ * invoke interaction over the wire. Consequently, the lifetime of this object is limited to a SINGLE interaction backed by a SINGLE exchange context.
+ *
+ * This object permits a single request + response. It does not permit multiple responses to be sequenced in order.
+ *
+ * This object comes into existence at the point that an invoke request has to be handled. Upon initialization of the object with the packet buffer, this
+ * object parses the various command data elements embedded in the message and dispatches them to ClusterServer objects registered with the 
+ * InteractionModel engine.
+ *
+ * Upon dispatch, the ClusterServer instance's OnInvokeRequest method is invoked. The cluster's OnInvokeRequest implementation has to follow one of the following
+ * calling conventions:
+ *      1. Handle the request and if a response needs to be generated, call AddResponse on the passed in InvokeResponder object.
+ *      2. Handle the request and if no responses needs to to be generated, do nothing.
+ *      3. Handle the request if a response needs to be generated asynchronously, call IncrementHoldOffRef() on the passed in InvokeResponder object. This
+ *         is a signal to the responder object to hold-off sending any queued up responoses till a matching DecrementHoldOffRef() call is made by that handler.
+ *
+ */
+class InvokeResponder
+{
+public:
+    /*
+     * @brief
+     *
+     * This interface defines the expectations for a handler of command requests.
+     *
+     */
+    class CommandHandler
+    {
+    public:
+        /*
+         * @brief
+         *
+         * Called to handle a data element present within an Invoke Request message.
+         *
+         * @param invokeInteraction         A reference to the invoke interaction instance that corresponds to the invoke request being processed.
+         * @param commandParams             A reference to an object containing the parameters of the command request.
+         * @param payload                   If a data payload is present, a TLV reader positioned at that payload is provided. The reader 
+         *                                  shall not be assumed to exist past this call, so the application should save off the data if they desire to.
+         */
+        virtual CHIP_ERROR OnInvokeRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload) = 0;
+
+        virtual ~CommandHandler() {} 
+    };
+
+    /*
+     * @brief
+     *
+     * Initializes the interaction object with the exchange context associated with the received message
+     * as well as a rvalue reference to the packet buffer containing the message.
+     *
+     */
+    CHIP_ERROR Init(Messaging::ExchangeContext *apContext, System::PacketBufferHandle &&aBufferHandle);
+   
+    /*
+     * @brief
+     *
+     * Encode a response to a request by providing command parameters as well as a pointer to an encodable object.
+     * The object's contents are immediately serialized into a response packet buffer. 
+     *
+     */
+    CHIP_ERROR AddResponse(CommandParams aParams, ISerializable *serializable);
+   
+    /*
+     * @brief
+     *
+     * Encode a response to a request by providing command parameters as well as a lambda that is in turn
+     * invoked with a TLVWriter passed in positioned at the appropriate offset into the packet buffer.
+     *
+     */
+    template <typename F, typename std::enable_if<std::is_class<F>::value, int>::type = 0>
+    CHIP_ERROR AddResponse(CommandParams aParams, F f) {
+        CHIP_ERROR err = CHIP_NO_ERROR;
+
+        err = StartCommandHeader(aParams);
+        SuccessOrExit(err);
+
+        // 
+        // Invoke the passed in closure that will actually write out the command payload if any
+        //
+        err = f(*mInvokeCommandBuilder.GetWriter(), TLV::ContextTag(CommandDataElement::kCsTag_Data));
+        SuccessOrExit(err);
+
+        mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().EndOfCommandDataElement();
+        SuccessOrExit((err = mInvokeCommandBuilder.GetCommandListBuilder().GetCommandDataElementBuidler().GetError()));
+
+exit:
+        return err;
+    }
+
+    /*
+     * @brief
+     *
+     * Encode a status response.
+     *
+     */
+    CHIP_ERROR AddStatusCode(const CommandParams &aParams, const StatusResponse &statusResponse);
+
+    /*
+     * @brief
+     *
+     * Increments the hold-off ref, signalling to the responder object that it should not dispatch any queued up responses till a 
+     * matching call to DecrementHoldOffRef() has been made.
+     */
+    void IncrementHoldOffRef();
+
+    /*
+     * @brief
+     *
+     * Decrements the hold-off ref. If it hits 0, any queued up responses that have been encoded into a response packet buffer are immediately
+     * transmitted, before this object is moved back to an idle state.
+     */
+    void DecrementHoldOffRef();
+
+private:
+    enum State
+    {
+        kStateReady = 0,
+        kStateReleased = 1
+    };
+
+    CHIP_ERROR Shutdown();
+
+    Messaging::ExchangeContext *GetExchangeContext() { return mpExchangeCtx; }
+    CHIP_ERROR FinalizeMessage(System::PacketBufferHandle &aBuf);
+    CHIP_ERROR SendMessage(System::PacketBufferHandle aBuf);
+    friend class InteractionModelEngine;
+
+private:
+    int mHoldOffCount = 0;
+    State mState;
+    friend class TestInvokeInteraction;
+    CHIP_ERROR StartCommandHeader(const CommandParams &aParams);
+    app::InvokeCommand::Builder mInvokeCommandBuilder;
+    chip::System::PacketBufferTLVWriter mWriter;
+    Messaging::ExchangeContext *mpExchangeCtx = nullptr;
+};
+    
 
 } // namespace app
 } // namespace chip

@@ -66,7 +66,7 @@ NetworkCommissioningServer::NetworkCommissioningServer()
 {
 }
 
-CHIP_ERROR NetworkCommissioningServer::HandleRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload)
+CHIP_ERROR NetworkCommissioningServer::OnInvokeRequest(CommandParams &commandParams, InvokeResponder &invokeInteraction, TLV::TLVReader *payload)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -121,7 +121,7 @@ exit:
     // This is unfortunate that we're diluting errors returned down to a singular code. We should in-fact, be sending
     // back either IM or Cluster status codes within each of the 'handlers' above.
     //
-    err = invokeInteraction.AddStatusCode(commandParams, Protocols::SecureChannel::GeneralStatusCode::kSuccess, Protocols::InteractionModel::Id, (uint16_t)err);
+    err = invokeInteraction.AddStatusCode(commandParams, {Protocols::SecureChannel::GeneralStatusCode::kSuccess, Protocols::InteractionModel::Id, (uint16_t)err});
     return err;
 }
 
