@@ -11,7 +11,7 @@ namespace app {
 namespace Cluster {
 namespace OperationalCredentialCluster {
     namespace AddOpCert {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 std::vector<uint8_t> noc;
                 std::vector<uint8_t> ipkValue;
@@ -28,7 +28,7 @@ namespace OperationalCredentialCluster {
     }
     
     namespace OpCertResponse {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 int8_t statusCode;
                 int64_t fabricIndex;
@@ -49,7 +49,7 @@ namespace OperationalCredentialCluster {
     }
 
     namespace OpCsrRequest {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 std::vector<uint8_t> csrNonce;
 
@@ -63,7 +63,7 @@ namespace OperationalCredentialCluster {
     }
 
     namespace OpCsrResponse {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 std::vector<uint8_t> csr;
                 std::vector<uint8_t> csrNonce;

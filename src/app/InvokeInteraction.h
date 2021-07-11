@@ -178,7 +178,7 @@ public:
      * writes that into an opened packet buffer.
      *
      */
-    CHIP_ERROR AddRequest(CommandParams aParams, ISerializable *serializable);
+    CHIP_ERROR AddRequest(CommandParams aParams, IEncodable *serializable);
    
     /*
      * @brief
@@ -221,7 +221,7 @@ exit:
      * This is equivalent to calling AddRequest and Send in succession.
      *
      */
-    CHIP_ERROR AddRequestAndSend(CommandParams aParams, ISerializable *serializable);
+    CHIP_ERROR AddRequestAndSend(CommandParams aParams, IEncodable *serializable);
    
     /*
      * @brief
@@ -350,13 +350,16 @@ public:
      * The object's contents are immediately serialized into a response packet buffer. 
      *
      */
-    CHIP_ERROR AddResponse(CommandParams aParams, ISerializable *serializable);
+    CHIP_ERROR AddResponse(CommandParams aParams, IEncodable *serializable);
    
     /*
      * @brief
      *
      * Encode a response to a request by providing command parameters as well as a lambda that is in turn
      * invoked with a TLVWriter passed in positioned at the appropriate offset into the packet buffer.
+     *
+     * This uses SFINAE to ensure selection of the right overload when a closure is passed in vs. a pointer to
+     * a serializable object.
      *
      */
     template <typename F, typename std::enable_if<std::is_class<F>::value, int>::type = 0>

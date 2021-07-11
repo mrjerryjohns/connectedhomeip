@@ -14,7 +14,7 @@ namespace TestCluster {
     constexpr ClusterId_t kClusterId = 0x000000001;
 
     namespace StructA {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 uint8_t x;
                 uint8_t y;
@@ -28,7 +28,7 @@ namespace TestCluster {
     }
     
     namespace StructB {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 uint8_t x;
                 uint8_t y;
@@ -41,7 +41,7 @@ namespace TestCluster {
     }
 
     namespace StructC {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 struct empty {};
 
@@ -58,7 +58,7 @@ namespace TestCluster {
     }
 
     namespace CommandA {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 static ClusterId_t GetClusterId() { return kClusterId; }
                 static uint16_t GetCommandId() { return kCommandAId; }
@@ -74,7 +74,7 @@ namespace TestCluster {
     }
     
     namespace CommandB {
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 static uint16_t GetClusterId() { return kClusterId; }
                 static uint16_t GetCommandId() { return kCommandBId; }

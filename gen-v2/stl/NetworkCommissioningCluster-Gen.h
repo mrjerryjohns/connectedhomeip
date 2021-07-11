@@ -30,7 +30,7 @@ namespace NetworkCommissioningCluster {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;
         
-        class Type : public ISerializable {
+        class Type : public IEncodable {
             public:
                 class Data {
                 public:

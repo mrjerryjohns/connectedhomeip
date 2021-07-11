@@ -151,7 +151,7 @@ exit:
     return err;
 }
 
-CHIP_ERROR InvokeResponder::AddResponse(CommandParams aParams, ISerializable *serializable)
+CHIP_ERROR InvokeResponder::AddResponse(CommandParams aParams, IEncodable *serializable)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -240,7 +240,10 @@ exit:
 CHIP_ERROR InvokeResponder::Shutdown()
 {
     if (mpExchangeCtx) {
+#if 0
+        // TODO: Not sure why the ExchangeManager assumes that we shouldn't close this exchange ourselves...
         mpExchangeCtx->Close();
+#endif
         mpExchangeCtx = nullptr;
     }
 
@@ -535,7 +538,7 @@ void InvokeInitiator::OnResponseTimeout(Messaging::ExchangeContext * apExchangeC
     }
 }
 
-CHIP_ERROR InvokeInitiator::AddRequest(CommandParams aParams, ISerializable *serializable) 
+CHIP_ERROR InvokeInitiator::AddRequest(CommandParams aParams, IEncodable *serializable) 
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
@@ -566,7 +569,7 @@ exit:
     return err;
 }
 
-CHIP_ERROR InvokeInitiator::AddRequestAndSend(CommandParams aParams, ISerializable *serializable) 
+CHIP_ERROR InvokeInitiator::AddRequestAndSend(CommandParams aParams, IEncodable *serializable) 
 {
     CHIP_ERROR err;
 
