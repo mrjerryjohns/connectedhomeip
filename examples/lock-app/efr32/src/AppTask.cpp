@@ -31,8 +31,6 @@
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
-#include <TestCluster-Gen.h>
-#include <app/InteractionModelEngine.h>
 
 #include <assert.h>
 
@@ -77,151 +75,6 @@ using namespace ::chip::DeviceLayer;
 
 AppTask AppTask::sAppTask;
 
-using namespace chip::app;
-using namespace chip;
-
-class TestServerCluster : public ClusterServer
-{
-public:
-    TestServerCluster();
-    CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload);
-};
-
-TestServerCluster::TestServerCluster()
-    : ClusterServer(&chip::app::Cluster::TestCluster::ClusterDescriptor)
-{
-}
-
-CHIP_ERROR 
-TestServerCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::app::Cluster::TestCluster::CommandA::Type req;
-    uint8_t d[5];
-
-    req.d = chip::Span{d};
-
-    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandAId) {
-        printf("Received CommandA\n");
-
-        // 
-        // To prevent the stack from actually sending this message
-        //
-        invokeInteraction.IncrementHoldoffRef();
-
-        err = DecodeSchemaElement(req, *payload);
-        SuccessOrExit(err);
-
-        //
-        // Send response synchronously
-        //
-        
-        {
-            chip::app::Cluster::TestCluster::CommandB::Type resp;
-            chip::app::Cluster::TestCluster::StructA::Type e[5];
-
-            resp.a = 21;
-            resp.b = 49;
-            resp.c.x = 19;
-            resp.c.y = 233;
-            resp.d = chip::Span{d};
-            resp.e = chip::Span{e};
-    
-            for (size_t i = 0; i < std::size(d); i++) {
-                d[i] = (uint8_t)(255 - i);
-            }
-
-            for (size_t i = 0; i < std::size(e); i++) {
-                e[i].x = (uint8_t)(255 - i);
-                e[i].y = (uint8_t)(255 - i);
-            }
-
-            commandParams.CommandId = chip::app::Cluster::TestCluster::kCommandBId;
-            err = invokeInteraction.AddCommand(commandParams, [&](chip::TLV::TLVWriter &writer, uint64_t tag) {
-                return EncodeSchemaElement(resp, writer, tag);
-            });
-            SuccessOrExit(err);
-        }
-    }
-
-exit:
-    return err;
-}
-
-class TestClientCluster : public ClusterClient
-{
-public:
-    TestClientCluster();
-    CHIP_ERROR SendCommand(InvokeInteraction **apInvoke);
-    CHIP_ERROR HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload);
-};
-
-TestClientCluster::TestClientCluster()
-    : ClusterClient(&chip::app::Cluster::TestCluster::ClusterDescriptor)
-{
-}
-
-CHIP_ERROR
-TestClientCluster::HandleCommand(InvokeInteraction::CommandParams &commandParams, InvokeInteraction &invokeInteraction, TLV::TLVReader *payload)
-{
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    chip::app::Cluster::TestCluster::CommandB::Type resp;
-    uint8_t d[5];
-    chip::app::Cluster::TestCluster::StructA::Type e[5];
-
-    resp.d = chip::Span{d};
-    resp.e = chip::Span{e};
-
-    if (commandParams.CommandId == chip::app::Cluster::TestCluster::kCommandBId) {
-        printf("Received CommandB\n");
-
-        // 
-        // To prevent the stack from actually sending this message
-        //
-        invokeInteraction.IncrementHoldoffRef();
-
-        err = DecodeSchemaElement(resp, *payload);
-        SuccessOrExit(err);
-    }
-
-exit:
-    return err;
-}
-
-CHIP_ERROR TestClientCluster::SendCommand(InvokeInteraction **apInvoke)
-{
-    chip::app::Cluster::TestCluster::CommandA::Type c;
-    InvokeInteraction::CommandParams p = BuildParams();
-    InvokeInteraction *invoke;
-    CHIP_ERROR err = CHIP_NO_ERROR;
-    uint8_t d[5];
-
-    c.a = 10;
-    c.b = 20;
-    c.c.x = 13;
-    c.c.y = 99;
-    c.d = chip::Span{d};
-
-    for (size_t i = 0; i < std::size(d); i++) {
-        d[i] = (uint8_t)i;
-    }
-    
-    p.CommandId = chip::app::Cluster::TestCluster::kCommandAId;
-
-    invoke = StartInvoke();
-    SuccessOrExit(err);
-
-    invoke->IncrementHoldoffRef();
-    *apInvoke = invoke;
-
-    err = invoke->AddCommand(p, [&c](chip::TLV::TLVWriter &writer, uint64_t tag) {
-        return EncodeSchemaElement(c, writer, tag);
-    });
-
-exit:
-    return err;
-}
-
 int AppTask::StartAppTask()
 {
     int err = CHIP_CONFIG_CORE_ERROR_MAX;
@@ -246,8 +99,6 @@ int AppTask::StartAppTask()
 int AppTask::Init()
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
-    TestClientCluster clientCluster;
-    TestServerCluster serverCluster;
 
     // Init ZCL Data Model
     InitServer();

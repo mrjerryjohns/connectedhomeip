@@ -22,7 +22,6 @@
 #include <iostream>
 #include <support/logging/CHIPLogging.h>
 
-
 LightingManager LightingManager::sLight;
 
 int LightingManager::Init()

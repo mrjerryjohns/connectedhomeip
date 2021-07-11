@@ -78,10 +78,6 @@ efr32_executable("lock_app") {
     "src/main.cpp",
   ]
 
-  public_configs = [
-    "${chip_root}/gen-v2/device:includes"
-  ]
-
   deps = [
     ":sdk",
     "${chip_root}/examples/common/QRCode",
@@ -92,7 +88,6 @@ efr32_executable("lock_app") {
     "${chip_root}/third_party/openthread/platforms:libopenthread-platform-utils",
     "${chip_root}/third_party/openthread/repo:libopenthread-cli-ftd",
     "${chip_root}/third_party/openthread/repo:libopenthread-ftd",
-    "${chip_root}/gen-v2/device",
   ]
 
   include_dirs = [ "include" ]

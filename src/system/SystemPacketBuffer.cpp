@@ -476,8 +476,6 @@ PacketBufferHandle PacketBufferHandle::New(size_t aAvailableSize, uint16_t aRese
 
     LOCK_BUF_POOL();
 
-    asdf
-
     lPacket = PacketBuffer::sFreeList;
     if (lPacket != nullptr)
     {
