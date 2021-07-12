@@ -72,8 +72,8 @@ exit:
     {
         AbortExistingExchangeContext();
     }
-
     ChipLogFunctError(err);
+
     return err;
 }
 

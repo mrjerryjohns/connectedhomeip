@@ -436,14 +436,6 @@ CHIP_ERROR InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExc
     VerifyOrExit(mState == kStateAwaitingResponse, err = CHIP_ERROR_INCORRECT_STATE);
     VerifyOrExit(mHandler != nullptr, err = CHIP_ERROR_INCORRECT_STATE);
 
-    //
-    // Close out our exchange first (which will eventually get reclaimed by our caller).
-    // This permits applications using this InvokeInitiator object to then allocate a new exchange 
-    // subsequently on the callback through the delegate if they are doing back to back commands 
-    // on new exchanges with the same inititor object.
-    //
-    CloseExchange();
-
     // Now that we've received the response, move our state back to ready to permit adding commands
     mState = kStateReady;
     
@@ -519,6 +511,8 @@ CHIP_ERROR InvokeInitiator::OnMessageReceived(Messaging::ExchangeContext * apExc
     }
 
 exit:
+    CloseExchange();
+    
    //
    // We're done with this object now. Let's signal the application to indicate the completion
    // of this interaction.

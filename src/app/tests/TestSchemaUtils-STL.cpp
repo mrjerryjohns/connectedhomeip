@@ -21,9 +21,10 @@
  *      This file implements unit tests for CHIP Interaction Model Command Interaction
  *
  */
-
-#include "SchemaTypes.h"
-#include "core/CHIPTLVTags.h"
+#include <core/CHIPCore.h>
+#include <core/CHIPTLVDebug.hpp>
+#include <support/CodeUtils.h>
+#include <core/CHIPTLVTags.h>
 #include <app/InteractionModelEngine.h>
 #include <core/CHIPCore.h>
 #include <core/CHIPTLV.h>

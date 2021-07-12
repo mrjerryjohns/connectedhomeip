@@ -132,7 +132,7 @@ CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
         }
 
         if (!buf) {
-            return CHIP_ERROR_DESERIALIZE_NULL_BUF;
+            return CHIP_ERROR_NULL_BUF_ARG;
         }
 
         for (auto schemaIter = pDescriptor.data(); schemaIter != (pDescriptor.data() + pDescriptor.size()); schemaIter++) {
@@ -153,7 +153,7 @@ CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
                         const uint8_t *ptr = p.data();
                         int size = (int)p.size();
 
-                        VerifyOrExit(size, err = CHIP_ERROR_DESERIALIZE_NULL_BUF);
+                        VerifyOrExit(size, err = CHIP_ERROR_NULL_BUF_ARG);
 
                         while ((err = DecodeSchemaElement(tmpDescriptorList, (void *)ptr, reader, true) == CHIP_NO_ERROR)) {
                             size--;
@@ -205,7 +205,7 @@ CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
                     chip::ByteSpan &p = *(reinterpret_cast<chip::ByteSpan *>((uintptr_t)(buf) + schemaIter->Offset));
                     uint32_t sz = reader.GetLength();
 
-                    VerifyOrExit(p.data() && p.size() >= sz, err = CHIP_ERROR_DESERIALIZE_NULL_BUF);
+                    VerifyOrExit(p.data() && p.size() >= sz, err = CHIP_ERROR_NULL_BUF_ARG);
 
                     err = reader.GetBytes((uint8_t *)p.data(), (uint32_t)p.size());
                     SuccessOrExit(err);
@@ -217,7 +217,7 @@ CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
                     chip::Span<char> &p = *(reinterpret_cast<chip::Span<char> *>((uintptr_t)(buf) + schemaIter->Offset));
                     uint32_t sz = reader.GetLength();
 
-                    VerifyOrExit(p.data() && p.size() >= sz, err = CHIP_ERROR_DESERIALIZE_NULL_BUF);
+                    VerifyOrExit(p.data() && p.size() >= sz, err = CHIP_ERROR_NULL_BUF_ARG);
 
                     err = reader.GetString((char *)p.data(), (uint32_t)p.size());
                     SuccessOrExit(err);

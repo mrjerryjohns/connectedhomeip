@@ -61,7 +61,6 @@
 #define CHIP_MAX_NUM_WRITE_CLIENT 4
 #define CHIP_MAX_NUM_WRITE_HANDLER 4
 
-#define CHIP_CONFIG_MAX_CLUSTER_CLIENTS 10
 #define CHIP_CONFIG_MAX_CLUSTER_SERVERS 10
 #define CHIP_MAX_NUM_INVOKE_INTERACTIONS 4
 
@@ -213,10 +212,9 @@ private:
     friend class InvokeResponder;
 
 private:
-    BitMapObjectPool<ClusterServer*, CHIP_CONFIG_MAX_CLUSTER_CLIENTS> mClusterServers;
+    BitMapObjectPool<ClusterServer*, CHIP_CONFIG_MAX_CLUSTER_SERVERS> mClusterServers;
     BitMapObjectPool<InvokeResponder, CHIP_MAX_NUM_INVOKE_INTERACTIONS> mInvokeResponders;
 
-    friend class ClusterClient;
     friend class TestInvokeInteraction;
 
     auto GetClusterServerSet() -> decltype(mClusterServers) & { return mClusterServers; }
