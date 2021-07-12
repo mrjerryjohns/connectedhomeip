@@ -1,5 +1,4 @@
 #include "OperationalCredentialCluster-Gen.h"
-#include "OperationalCredentialCluster.h"
 #include "core/CHIPTLVTags.h"
 #include "core/CHIPTLVTypes.h"
 

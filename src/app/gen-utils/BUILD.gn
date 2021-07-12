@@ -18,14 +18,12 @@ config("includes") {
   include_dirs = [ "." ]
 }
 
-static_library("stl") {
-  output_name = "libStlSchema"
+static_library("gen-utils-device") {
+  output_name = "libGenUtilsDevice"
 
   sources = [
-    "OperationalCredentialCluster.cpp",
-    "OperationalCredentialCluster-Gen.h",
-    "TestCluster.cpp",
-    "TestCluster-Gen.h",
+    "device/SchemaUtils.cpp",
+    "device/SchemaTypes.h"
   ]
 
   public_deps = [
@@ -41,3 +39,26 @@ static_library("stl") {
 
   defines = []
 }
+
+static_library("gen-utils-stl") {
+  output_name = "libGenUtilsStl"
+
+  sources = [
+    "stl/DemuxedInvokeInitiator.cpp",
+    "stl/DemuxedInvokeInitiator.h"
+  ]
+
+  public_deps = [
+    "${chip_root}/src/lib/core",
+    "${chip_root}/src/lib/support",
+    "${chip_root}/src/app"
+  ]
+
+  public_configs = [
+    "${chip_root}/src/app:app_config",
+    ":includes"
+  ]
+
+  defines = []
+}
+

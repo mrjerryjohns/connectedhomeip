@@ -22,7 +22,6 @@
  *
  */
 
-#include "TestCluster.h"
 #include "messaging/ExchangeDelegate.h"
 #include <app/InteractionModelEngine.h>
 #include <core/CHIPCore.h>
@@ -45,7 +44,6 @@
 #include <protocols/secure_channel/MessageCounterManager.h>
 #include <DemuxedInvokeInitiator.h>
 #include <nlunit-test.h>
-
 #include <TestCluster-Gen.h>
 
 using namespace std::placeholders;

@@ -2,7 +2,6 @@
 
 #include <array>
 #include <type_traits>
-#include "OperationalCredentialCluster.h"
 #include <vector>
 #include <string>
 #include <basic-types.h>
@@ -12,7 +11,16 @@ namespace chip {
 namespace app {
 namespace Cluster {
 namespace OperationalCredentialCluster {
+    const chip::ClusterId kClusterId = 0x003E;
+    
     namespace AddOpCert {
+        enum FieldId {
+            kFieldIdNoc = 0,
+            kFieldIdIpkValue = 1,
+            kFieldIdCaseAdminNode = 2,
+            kFieldIdAdminVendorId = 3
+        };
+        
         class Type : public IEncodable {
             public:
                 std::vector<uint8_t> noc;
@@ -30,6 +38,12 @@ namespace OperationalCredentialCluster {
     }
     
     namespace OpCertResponse {
+        enum FieldId {
+            kFieldIdStatusCode = 0,
+            kFieldIdFabricIndex = 1,
+            kFieldIdDebugText = 2
+        };
+        
         class Type : public IEncodable {
             public:
                 int8_t statusCode;
@@ -51,6 +65,10 @@ namespace OperationalCredentialCluster {
     }
 
     namespace OpCsrRequest {
+        enum FieldID {
+            kFieldIdCsrNonce = 0
+        };
+        
         class Type : public IEncodable {
             public:
                 std::vector<uint8_t> csrNonce;
@@ -65,6 +83,15 @@ namespace OperationalCredentialCluster {
     }
 
     namespace OpCsrResponse {
+        enum FieldID {
+            kFieldIdCsr = 0,
+            kFieldIdCsrNonce = 1,
+            kFieldIdVendorReserved1 = 2,
+            kFieldIdVendorReserved2 = 3,
+            kFieldIdVendorReserved3 = 4,
+            kFieldIdSignature = 5
+        };
+        
         class Type : public IEncodable {
             public:
                 std::vector<uint8_t> csr;

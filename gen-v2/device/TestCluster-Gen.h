@@ -8,8 +8,6 @@ namespace chip {
 namespace app {
 namespace Cluster { 
 namespace TestCluster {
-    extern ClusterDescriptor ClusterDescriptor;
-
     namespace StructA {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;

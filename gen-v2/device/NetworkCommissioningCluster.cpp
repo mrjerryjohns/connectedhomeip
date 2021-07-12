@@ -4,10 +4,6 @@ namespace chip {
 namespace app {
 namespace Cluster { 
 namespace NetworkCommissioningCluster {
-    struct ClusterDescriptor ClusterDescriptor = {
-        .ClusterId = kClusterId
-    };
-    
     namespace AddThreadNetworkCommand {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};

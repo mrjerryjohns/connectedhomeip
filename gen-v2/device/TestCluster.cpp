@@ -1,13 +1,8 @@
 #include "TestCluster-Gen.h"
-
 namespace chip {
 namespace app {
 namespace Cluster { 
 namespace TestCluster {
-    struct ClusterDescriptor ClusterDescriptor = {
-        .ClusterId = kClusterId
-    };
-
     namespace StructA {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
             std::array<TypeOffsetInfo,NumImplementedFields> r = {};

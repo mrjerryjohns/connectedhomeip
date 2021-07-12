@@ -8,8 +8,6 @@ namespace chip {
 namespace app {
 namespace Cluster { 
 namespace NetworkCommissioningCluster {
-    extern ClusterDescriptor ClusterDescriptor;
-
     namespace AddThreadNetworkCommand {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
         extern const StructDescriptor<NumImplementedFields> Descriptor;

@@ -2,7 +2,6 @@
 
 #include <array>
 #include <type_traits>
-#include "TestCluster.h"
 #include <vector>
 #include <string>
 #include <basic-types.h>
@@ -12,7 +11,21 @@ namespace chip {
 namespace app {
 namespace Cluster { 
 namespace TestCluster {
+    constexpr chip::ClusterId kClusterId = 0x000000001;
+
+    enum CommandId {
+        kCommandAId = 1,
+        kCommandBId = 2
+    };
+    
     namespace StructA {
+        enum FieldId {
+            kFieldIdJ = 0,
+            kFieldIdK = 1,
+            kFieldIdL = 2,
+            kFieldIdM = 3
+        };
+        
         class Type : public IEncodable {
             public:
                 uint8_t x;
@@ -27,6 +40,12 @@ namespace TestCluster {
     }
     
     namespace StructB {
+        enum FieldId {
+            kFieldIdX = 0,
+            kFieldIdY = 1,
+            kFieldIdZ = 2
+        };
+        
         class Type : public IEncodable {
             public:
                 uint8_t x;
@@ -40,6 +59,14 @@ namespace TestCluster {
     }
 
     namespace StructC {
+        enum FieldId {
+            kFieldIdA = 0,
+            kFieldIdB = 1,
+            kFieldIdC = 2,
+            kFieldIdD = 3,
+            kFieldIdE = 4,
+        };
+        
         class Type : public IEncodable {
             public:
                 struct empty {};
@@ -57,6 +84,13 @@ namespace TestCluster {
     }
 
     namespace CommandA {
+        enum FieldId {
+            kFieldIdA = 0,
+            kFieldIdB = 1,
+            kFieldIdC = 2,
+            kFieldIdD = 3,
+        };
+        
         class Type : public IEncodable {
             public:
                 static chip::ClusterId GetClusterId() { return kClusterId; }
@@ -73,6 +107,14 @@ namespace TestCluster {
     }
     
     namespace CommandB {
+        enum FieldId {
+            kFieldIdA = 0,
+            kFieldIdB = 1,
+            kFieldIdC = 2,
+            kFieldIdD = 3,
+            kFieldIdE = 4,
+        };
+        
         class Type : public IEncodable {
             public:
                 static chip::ClusterId GetClusterId() { return kClusterId; }
