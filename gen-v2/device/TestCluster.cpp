@@ -48,7 +48,7 @@ namespace TestCluster {
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
-                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
+                chip::Span<const CompactFieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
 
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
@@ -76,8 +76,8 @@ namespace TestCluster {
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
-                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
-                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
+                chip::Span<const CompactFieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
+                chip::Span<const CompactFieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
 
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
@@ -103,7 +103,7 @@ namespace TestCluster {
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
-                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
+                chip::Span<const CompactFieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
 
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
@@ -130,8 +130,8 @@ namespace TestCluster {
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
-                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
-                chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
+                chip::Span<const CompactFieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
+                chip::Span<const CompactFieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
 
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
@@ -169,7 +169,7 @@ namespace TestCluster {
 
         const StructDescriptor<NumImplementedFields> Descriptor = {
             .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
-                chip::Span<const FieldDescriptor>({StructB::Descriptor.FieldList.data(), StructB::Descriptor.FieldList.size()})
+                chip::Span<const CompactFieldDescriptor>({StructB::Descriptor.FieldList.data(), StructB::Descriptor.FieldList.size()})
             )
         };
 

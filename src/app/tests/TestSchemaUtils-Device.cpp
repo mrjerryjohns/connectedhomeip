@@ -23,6 +23,7 @@
  */
 
 #include <device/SchemaTypes.h>
+#include <device/SchemaUtils.h>
 #include "core/CHIPTLVTags.h"
 #include <app/InteractionModelEngine.h>
 #include <core/CHIPCore.h>

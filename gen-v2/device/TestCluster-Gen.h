@@ -65,8 +65,8 @@ namespace TestCluster {
                 struct empty {};
 
             public:
-                static ClusterId_t GetClusterId() { return kClusterId; }
-                static uint16_t GetCommandId() { return kCommandAId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
+                static chip::CommandId GetCommandId() { return kCommandAId; }
 
                 uint8_t a;
                 uint8_t b;
@@ -83,8 +83,8 @@ namespace TestCluster {
         
         class Type {
             public:
-                static ClusterId_t GetClusterId() { return kClusterId; }
-                static uint16_t GetCommandId() { return kCommandBId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
+                static chip::CommandId GetCommandId() { return kCommandBId; }
                 
                 struct empty {};
 

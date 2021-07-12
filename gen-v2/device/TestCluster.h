@@ -29,7 +29,7 @@ namespace TestCluster {
         constexpr uint64_t FieldL = (0x00000001ULL << 32) | 0x20;
         constexpr uint64_t FieldM = (0x00000001ULL << 32) | 0x21;
 
-        constexpr _FieldDescriptor _Schema[] = {
+        constexpr FullFieldDescriptor _Schema[] = {
             {kFieldIdJ, Type::TYPE_UINT8,   kNone,                  FieldJ, {}},
             {kFieldIdK, Type::TYPE_UINT8,   kNullable,              FieldK, {}},
             {kFieldIdL, Type::TYPE_OCTSTR,  kNone,                  FieldL, {}},
@@ -48,7 +48,7 @@ namespace TestCluster {
         constexpr uint64_t FieldY = (0x00000001ULL << 32) | 0x09;
         constexpr uint64_t FieldZ = (0x00000001ULL << 32) | 0x0a;
 
-        constexpr _FieldDescriptor _Schema[] = {
+        constexpr FullFieldDescriptor _Schema[] = {
             {kFieldIdX, Type::TYPE_UINT8, kNone,                  FieldX, {}},
             {kFieldIdY, Type::TYPE_UINT8, kNullable,              FieldY, {}},
             {kFieldIdZ, Type::TYPE_STRUCT, 0,                     FieldZ, {StructA::_Schema, ArraySize(StructA::_Schema)}},
@@ -70,7 +70,7 @@ namespace TestCluster {
         constexpr uint64_t FieldD = (0x00000001ULL << 32) | 0x10;
         constexpr uint64_t FieldE = (0x00000001ULL << 32) | 0x11;
 
-        constexpr _FieldDescriptor _Schema[] = {
+        constexpr FullFieldDescriptor _Schema[] = {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
             {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, ArraySize(StructA::_Schema)}},
@@ -94,7 +94,7 @@ namespace TestCluster {
         constexpr uint64_t FieldC = (0x00000001ULL << 32) | 0x14;
         constexpr uint64_t FieldD = (0x00000001ULL << 32) | 0x15;
 
-        constexpr _FieldDescriptor _Schema[] = {
+        constexpr FullFieldDescriptor _Schema[] = {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
             {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, ArraySize(StructA::_Schema)}},
@@ -118,7 +118,7 @@ namespace TestCluster {
         constexpr uint64_t FieldD = (0x00000001ULL << 32) | 0x19;
         constexpr uint64_t FieldE = (0x00000001ULL << 32) | 0x1a;
 
-        constexpr _FieldDescriptor _Schema[] = {
+        constexpr FullFieldDescriptor _Schema[] = {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
             {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, ArraySize(StructA::_Schema)}},
@@ -146,7 +146,7 @@ namespace TestCluster {
         constexpr uint64_t FieldE = (0x00000001ULL << 32) | 0x06;
         constexpr uint64_t FieldF = (0x00000001ULL << 32) | 0x07;
         
-        constexpr _FieldDescriptor _Schema[] = {
+        constexpr FullFieldDescriptor _Schema[] = {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA,     {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB,     {}},
             {kFieldIdC, Type::TYPE_UINT32,          kOptional | kNullable,  FieldC,     {}},

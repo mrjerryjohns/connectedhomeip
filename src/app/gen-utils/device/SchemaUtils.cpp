@@ -36,7 +36,7 @@ static_assert(sizeof(chip::Span<uint8_t>) == sizeof(chip::Span<Test>), "Chip::Sp
 namespace chip {
 namespace app {
 
-CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, bool inArray)
+CHIP_ERROR EncodeSchemaElement(chip::Span<const CompactFieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, bool inArray)
 {
     CHIP_ERROR err;
     TLV::TLVType outerContainerType;
@@ -52,8 +52,8 @@ CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
         if (schemaIter->FieldType.Has(Type::TYPE_ARRAY)) {
             TLV::TLVType outerContainerType2;
             chip::ByteSpan &p = *(reinterpret_cast<chip::ByteSpan *>((uintptr_t)(buf) + schemaIter->Offset));
-            FieldDescriptor tmpDescriptor = *schemaIter;
-            chip::Span<const FieldDescriptor> tmpDescriptorList = {&tmpDescriptor, 1};
+            CompactFieldDescriptor tmpDescriptor = *schemaIter;
+            chip::Span<const CompactFieldDescriptor> tmpDescriptorList = {&tmpDescriptor, 1};
 
             if (p.data() && p.size()) {
                 tmpDescriptor.FieldType.Clear(Type::TYPE_ARRAY);
@@ -114,7 +114,7 @@ exit:
     return err;
 }
 
-CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, TLV::TLVReader &reader, bool inArray)
+CHIP_ERROR DecodeSchemaElement(chip::Span<const CompactFieldDescriptor> pDescriptor, void *buf, TLV::TLVReader &reader, bool inArray)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     TLV::TLVType outerContainerType;
@@ -140,8 +140,8 @@ CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, vo
                 if (schemaIter->FieldType.Has(Type::TYPE_ARRAY)) {
                     TLV::TLVType outerContainerType2;
                     chip::ByteSpan &p = *(reinterpret_cast<chip::ByteSpan *>((uintptr_t)(buf) + schemaIter->Offset));
-                    FieldDescriptor tmpDescriptor = *schemaIter;
-                    chip::Span<const FieldDescriptor> tmpDescriptorList = {&tmpDescriptor, 1};
+                    CompactFieldDescriptor tmpDescriptor = *schemaIter;
+                    chip::Span<const CompactFieldDescriptor> tmpDescriptorList = {&tmpDescriptor, 1};
 
                     tmpDescriptor.FieldType.Clear(Type::TYPE_ARRAY);
                     tmpDescriptor.Offset = 0;

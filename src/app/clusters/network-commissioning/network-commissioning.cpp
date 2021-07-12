@@ -22,6 +22,7 @@
 #include "core/CHIPError.h"
 #include "protocols/secure_channel/Constants.h"
 
+#include <device/SchemaUtils.h>
 #include <cstring>
 #include <type_traits>
 #include <lib/support/CodeUtils.h>

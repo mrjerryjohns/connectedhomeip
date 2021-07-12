@@ -56,7 +56,7 @@ namespace OperationalCredentialCluster {
                 // TODO: This SHOULD be 0x08, but because the device side sends back a faulty status 
                 // response, we need to switch this back to 0x06.
                 //
-                static uint16_t GetCommandId() { return 0x06; }
+                static chip::CommandId GetCommandId() { return 0x06; }
                 
             public:
                 CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
@@ -74,7 +74,7 @@ namespace OperationalCredentialCluster {
                 std::vector<uint8_t> csrNonce;
 
                 static chip::ClusterId GetClusterId() { return kClusterId; }
-                static uint16_t GetCommandId() { return 0x04; }
+                static chip::CommandId GetCommandId() { return 0x04; }
 
             public:
                 CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 
@@ -102,7 +102,7 @@ namespace OperationalCredentialCluster {
                 std::vector<uint8_t> signature;
 
                 static chip::ClusterId GetClusterId() { return kClusterId; }
-                static uint16_t GetCommandId() { return 0x05; }
+                static chip::CommandId GetCommandId() { return 0x05; }
 
             public:
                 CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) final; 

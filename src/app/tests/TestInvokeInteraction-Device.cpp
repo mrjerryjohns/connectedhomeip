@@ -46,6 +46,7 @@
 
 #include <nlunit-test.h>
 
+#include <device/SchemaUtils.h>
 #include <TestCluster-Gen.h>
 #include <NetworkCommissioningCluster-Gen.h>
 
