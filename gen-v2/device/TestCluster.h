@@ -51,7 +51,7 @@ namespace TestCluster {
         constexpr _FieldDescriptor _Schema[] = {
             {kFieldIdX, Type::TYPE_UINT8, kNone,                  FieldX, {}},
             {kFieldIdY, Type::TYPE_UINT8, kNullable,              FieldY, {}},
-            {kFieldIdZ, Type::TYPE_STRUCT, 0,                     FieldZ, {StructA::_Schema, std::size(StructA::_Schema)}},
+            {kFieldIdZ, Type::TYPE_STRUCT, 0,                     FieldZ, {StructA::_Schema, ArraySize(StructA::_Schema)}},
         };
     }
 
@@ -73,11 +73,11 @@ namespace TestCluster {
         constexpr _FieldDescriptor _Schema[] = {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
-            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
+            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, ArraySize(StructA::_Schema)}},
             {kFieldIdD, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
             {kFieldIdE, BitFlags<Type>(Type::TYPE_ARRAY)
-                        .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, std::size(StructA::_Schema)}},
+                        .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, ArraySize(StructA::_Schema)}},
         };
     }
 
@@ -97,7 +97,7 @@ namespace TestCluster {
         constexpr _FieldDescriptor _Schema[] = {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
-            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
+            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, ArraySize(StructA::_Schema)}},
             {kFieldIdD, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
         };
@@ -121,11 +121,11 @@ namespace TestCluster {
         constexpr _FieldDescriptor _Schema[] = {
             {kFieldIdA, Type::TYPE_UINT8,           kNone,                  FieldA, {}},
             {kFieldIdB, Type::TYPE_UINT8,           kNullable,              FieldB, {}},
-            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, std::size(StructA::_Schema)}},
+            {kFieldIdC, Type::TYPE_STRUCT,          0,                      FieldC, {StructA::_Schema, ArraySize(StructA::_Schema)}},
             {kFieldIdD, BitFlags<Type>(Type::TYPE_ARRAY)
                         .Set(Type::TYPE_UINT8),     0,                      FieldD, {}},
             {kFieldIdE, BitFlags<Type>(Type::TYPE_ARRAY)
-                        .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, std::size(StructA::_Schema)}},
+                        .Set(Type::TYPE_STRUCT),    0,                      FieldE, {StructA::_Schema, ArraySize(StructA::_Schema)}},
         };
     }
 
@@ -152,7 +152,7 @@ namespace TestCluster {
             {kFieldIdC, Type::TYPE_UINT32,          kOptional | kNullable,  FieldC,     {}},
             {kFieldIdD, Type::TYPE_UINT8,           kOptional | kNullable,  FieldD,     {}},
             {kFieldIdE, BitFlags<Type>(Type::TYPE_ARRAY).Set(Type::TYPE_UINT8), kNone,                  FieldF,     {}},
-            {kFieldIdF, Type::TYPE_STRUCT,          kNone,                  FieldE,     {StructB::_Schema, std::size(StructB::_Schema)}},
+            {kFieldIdF, Type::TYPE_STRUCT,          kNone,                  FieldE,     {StructB::_Schema, ArraySize(StructB::_Schema)}},
         };
     }
 }

@@ -81,8 +81,9 @@ namespace OperationalCredentialCluster {
                 }
                 else if (tag == TLV::ContextTag(kFieldIdDebugText)) {
                    int len = reader.GetLength() + 1;
-                   debugText.resize(len + 1);
-                   ReturnErrorOnFailure(reader.GetString(debugText.data(), len + 1));
+                   char tmp[len];
+                   ReturnErrorOnFailure(reader.GetString(tmp, len + 1));
+                   debugText = std::string(tmp, len + 1);
                    debugText.resize(len - 1);
                 }
             }

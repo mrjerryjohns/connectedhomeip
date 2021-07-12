@@ -14,10 +14,9 @@ namespace TestCluster {
         
         class Type {
             public:
-                Type() : x(2) {}
                 uint8_t x;
                 uint8_t y;
-                chip::ByteSpan l = chip::ByteSpan{{0, 1, 2, 3}};
+                chip::ByteSpan l;
                 chip::Span<char> m;
                 
                 static const StructDescriptor<NumImplementedFields> &mDescriptor;
@@ -66,8 +65,8 @@ namespace TestCluster {
                 struct empty {};
 
             public:
-                ClusterId_t GetClusterId() { return kClusterId; }
-                uint16_t GetCommandId() { return kCommandAId; }
+                static ClusterId_t GetClusterId() { return kClusterId; }
+                static uint16_t GetCommandId() { return kCommandAId; }
 
                 uint8_t a;
                 uint8_t b;
@@ -84,8 +83,8 @@ namespace TestCluster {
         
         class Type {
             public:
-                ClusterId_t GetClusterId() { return kClusterId; }
-                uint16_t GetCommandId() { return kCommandBId; }
+                static ClusterId_t GetClusterId() { return kClusterId; }
+                static uint16_t GetCommandId() { return kCommandBId; }
                 
                 struct empty {};
 

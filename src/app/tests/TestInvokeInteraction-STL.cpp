@@ -98,7 +98,7 @@ TestServerCluster::OnInvokeRequest(CommandParams &commandParams, InvokeResponder
         NL_TEST_ASSERT(gpSuite, req.c.x == 13);
         NL_TEST_ASSERT(gpSuite, req.c.y == 99);
 
-        for (size_t i = 0; i < std::size(req.d); i++) {
+        for (size_t i = 0; i < req.d.size(); i++) {
             NL_TEST_ASSERT(gpSuite, req.d[i] == i);
         }
 
@@ -265,9 +265,6 @@ void TestInvokeInteraction::TestInvokeInteractionSimple(nlTestSuite * apSuite, v
     NL_TEST_ASSERT(apSuite, serverEp0.mGotCommandA);
     NL_TEST_ASSERT(apSuite, serverEp1.mGotCommandA);
 
-    //NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 1);
-
-    //chip::app::InteractionModelEngine::GetInstance()->FreeReleasedInvokeResponderObjects((intptr_t)chip::app::InteractionModelEngine::GetInstance());
     NL_TEST_ASSERT(apSuite, gTestInvoke.GetNumActiveInvokes() == 0);
     
     {

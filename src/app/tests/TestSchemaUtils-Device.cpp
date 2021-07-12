@@ -22,7 +22,7 @@
  *
  */
 
-#include "SchemaTypes.h"
+#include <device/SchemaTypes.h>
 #include "core/CHIPTLVTags.h"
 #include <app/InteractionModelEngine.h>
 #include <core/CHIPCore.h>
@@ -124,7 +124,7 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecSimple(nlTestSuite * apSuite, void
     sa.l = chip::ByteSpan{buf};
 
     // TODO: Bug in CHIPTLVWriter/Reader that don't quite deal with the null-terminator correctly.
-    sa.m = chip::Span(strbuf, strlen(strbuf));
+    sa.m = chip::Span<char>(strbuf, strlen(strbuf));
     
     err = chip::app::EncodeSchemaElement(sa, _this->mWriter, TLV::AnonymousTag);
     NL_TEST_ASSERT(apSuite, err == CHIP_NO_ERROR);
@@ -132,11 +132,11 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecSimple(nlTestSuite * apSuite, void
     _this->DumpBuf();
 
     memset(&sa, 0, sizeof(sa));
-    memset(buf, 0, std::size(buf));
-    memset(strbuf, 0, std::size(strbuf));
+    memset(buf, 0, ArraySize(buf));
+    memset(strbuf, 0, ArraySize(strbuf));
 
     sa.l = chip::ByteSpan{buf};
-    sa.m = chip::Span{strbuf};
+    sa.m = chip::Span<char>{strbuf};
 
     _this->SetupReader();
 
@@ -146,11 +146,11 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecSimple(nlTestSuite * apSuite, void
     NL_TEST_ASSERT(apSuite, sa.x == 20);
     NL_TEST_ASSERT(apSuite, sa.y == 30);
 
-    for (uint32_t i = 0; i < std::size(buf); i++) {
+    for (uint32_t i = 0; i < ArraySize(buf); i++) {
         NL_TEST_ASSERT(apSuite, buf[i] == i);
     }
 
-    NL_TEST_ASSERT(apSuite, strncmp(strbuf, "chip", std::size("chip")) == 0);
+    NL_TEST_ASSERT(apSuite, strncmp(strbuf, "chip", ArraySize("chip")) == 0);
 }
 
 void TestSchemaUtils::TestSchemaUtilsEncAndDecNestedStruct(nlTestSuite * apSuite, void * apContext)
@@ -196,7 +196,7 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecList(nlTestSuite * apSuite, void *
     _this->mpSuite = apSuite;
     _this->SetupBuf();
 
-    for (size_t i = 0; i < std::size(d); i++) {
+    for (size_t i = 0; i < ArraySize(d); i++) {
         d[i] = (uint8_t)i;
     }
 
@@ -204,10 +204,10 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecList(nlTestSuite * apSuite, void *
     sc.b = 30;
     sc.c.x = 99;
     sc.c.y = 17;
-    sc.d = chip::Span{d};
-    sc.e = chip::Span{e};
+    sc.d = chip::Span<uint8_t>{d};
+    sc.e = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{e};
 
-    for (size_t i = 0; i < std::size(e); i++) {
+    for (size_t i = 0; i < ArraySize(e); i++) {
         e[i].x = (uint8_t)i;
         e[i].y = (uint8_t)i;
     }
@@ -221,8 +221,8 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecList(nlTestSuite * apSuite, void *
     memset(d, 0, sizeof(d));
     memset(e, 0, sizeof(e));
 
-    sc.d = chip::Span{d};
-    sc.e = chip::Span{e};
+    sc.d = chip::Span<uint8_t>{d};
+    sc.e = chip::Span<chip::app::Cluster::TestCluster::StructA::Type>{e};
 
     _this->SetupReader();
 
@@ -234,11 +234,11 @@ void TestSchemaUtils::TestSchemaUtilsEncAndDecList(nlTestSuite * apSuite, void *
     NL_TEST_ASSERT(apSuite, sc.c.x == 99);
     NL_TEST_ASSERT(apSuite, sc.c.y == 17);
 
-    for (size_t i = 0; i < std::size(d); i++) {
+    for (size_t i = 0; i < ArraySize(d); i++) {
         NL_TEST_ASSERT(apSuite, d[i] == i);
     }
 
-    for (size_t i = 0; i < std::size(e); i++) {
+    for (size_t i = 0; i < ArraySize(e); i++) {
         NL_TEST_ASSERT(apSuite, e[i].x == i);
         NL_TEST_ASSERT(apSuite, e[i].y == i);
     }

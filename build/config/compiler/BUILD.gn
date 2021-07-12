@@ -214,8 +214,8 @@ config("symbols_default") {
 config("std_default") {
   cflags_c = [ "-std=${c_standard}" ]
   cflags_objc = [ "-std=${c_standard}" ]
-  cflags_cc = [ "-std=gnu++2a" ]
-  cflags_objcc = [ "-std=gnu++2a" ]
+  cflags_cc = [ "-std=${cpp_standard}" ]
+  cflags_objcc = [ "-std=${cpp_standard}" ]
 }
 
 config("cosmetic_default") {

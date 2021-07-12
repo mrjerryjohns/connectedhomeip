@@ -157,20 +157,22 @@ constexpr std::array<FieldDescriptor, N> PopulateFieldDescriptors(const _FieldDe
     int index = 0;
     int structIndex = 0;
 
-    std::array<FieldDescriptor, N> r = {};
+    using result_t = ::std::array<FieldDescriptor, N>;
+    result_t r = {};
     std::array<chip::Span<const FieldDescriptor>, sizeof...(args)> structArgs = {{ args... }};
+    const result_t& const_r = r;
 
     for (size_t i = 0; i < M; i++) {
         if (((schema[i].Qualities & kOptional) && IsImplemented(schema[i].FieldGenTag)) ||
             !(schema[i].Qualities & kOptional)) {
-            r[index].Offset = offsets[index].Offset;
-            r[index].TypeSize = offsets[index].TypeSize;
-            r[index].FieldId = schema[i].FieldId;
-            r[index].FieldType = schema[i].FieldType;
-            r[index].Qualities = schema[i].Qualities;
+            const_cast<decltype(FieldDescriptor::Offset)&>(const_r[index].Offset) = offsets[index].Offset;
+            const_cast<decltype(FieldDescriptor::TypeSize)&>(const_r[index].TypeSize) = offsets[index].TypeSize;
+            const_cast<decltype(FieldDescriptor::FieldId)&>(const_r[index].FieldId) = schema[i].FieldId;
+            const_cast<decltype(FieldDescriptor::FieldType)&>(const_r[index].FieldType) = schema[i].FieldType;
+            const_cast<decltype(FieldDescriptor::Qualities)&>(const_r[index].Qualities) = schema[i].Qualities;
 
             if (schema[i].FieldType.Has(Type::TYPE_STRUCT)) {
-                r[index].StructDef = structArgs[structIndex++];
+                const_cast<decltype(FieldDescriptor::StructDef)&>(const_r[index].StructDef) = structArgs[structIndex++];
             }
 
             index++;

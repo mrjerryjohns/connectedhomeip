@@ -41,8 +41,9 @@ namespace TestCluster {
                 }
                 else if (tag == TLV::ContextTag(kFieldIdM)) {
                    int len = reader.GetLength() + 1;
-                   m.resize(len + 1);
-                   ReturnErrorOnFailure(reader.GetString(m.data(), len + 1));
+                   char tmp[len];
+                   ReturnErrorOnFailure(reader.GetString(tmp, len + 1));
+                   m = std::string(tmp, len + 1);
                    m.resize(len - 1);
                 }
             }

@@ -5,14 +5,16 @@ namespace Cluster {
 namespace TestCluster {
     namespace StructA {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
-            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+            using result_t = ::std::array<TypeOffsetInfo, NumImplementedFields>;
+            result_t r = {};
+            const result_t& const_r = r;
 
             uint32_t i = 0;
 
-            r[i++] = {offsetof(class Type, x), sizeof(Type::x)};
-            r[i++] = {offsetof(class Type, y), sizeof(Type::y)};
-            r[i++] = {offsetof(class Type, l), sizeof(uint8_t)};
-            r[i++] = {offsetof(class Type, m), sizeof(char)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, x), sizeof(Type::x)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, y), sizeof(Type::y)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, l), sizeof(uint8_t)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, m), sizeof(char)};
 
             return r;
         }
@@ -20,7 +22,7 @@ namespace TestCluster {
         constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
-            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets)
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets)
         };
 
         const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
@@ -28,13 +30,16 @@ namespace TestCluster {
 
     namespace StructB {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
-            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+            using result_t = ::std::array<TypeOffsetInfo, NumImplementedFields>;
+            result_t r = {};
+            const result_t& const_r = r;
+
 
             uint32_t i = 0;
 
-            r[i++] = {offsetof(class Type, x), sizeof(Type::x)};
-            r[i++] = {offsetof(class Type, y), sizeof(Type::y)};
-            r[i++] = {offsetof(class Type, z), sizeof(Type::z)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, x), sizeof(Type::x)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, y), sizeof(Type::y)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, z), sizeof(Type::z)};
 
             return r;
         }
@@ -42,7 +47,7 @@ namespace TestCluster {
         constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
-            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
                 chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
 
@@ -51,15 +56,18 @@ namespace TestCluster {
     
     namespace StructC {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
-            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+            using result_t = ::std::array<TypeOffsetInfo, NumImplementedFields>;
+            result_t r = {};
+            const result_t& const_r = r;
+
 
             uint32_t i = 0;
 
-            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
-            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
-            r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
-            r[i++] = {offsetof(class Type, d), sizeof(uint8_t)};
-            r[i++] = {offsetof(class Type, e), sizeof(StructA::Type)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, a), sizeof(Type::a)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, b), sizeof(Type::b)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, c), sizeof(Type::c)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, d), sizeof(uint8_t)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, e), sizeof(StructA::Type)};
 
             return r;
         }
@@ -67,7 +75,7 @@ namespace TestCluster {
         constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
-            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
                 chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
                 chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
@@ -77,14 +85,16 @@ namespace TestCluster {
 
     namespace CommandA {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
-            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+            using result_t = ::std::array<TypeOffsetInfo, NumImplementedFields>;
+            result_t r = {};
+            const result_t& const_r = r;
 
             uint32_t i = 0;
 
-            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
-            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
-            r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
-            r[i++] = {offsetof(class Type, d), sizeof(uint8_t)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, a), sizeof(Type::a)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, b), sizeof(Type::b)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, c), sizeof(Type::c)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, d), sizeof(uint8_t)};
 
             return r;
         }
@@ -92,7 +102,7 @@ namespace TestCluster {
         constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
-            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
                 chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
 
@@ -101,15 +111,17 @@ namespace TestCluster {
    
     namespace CommandB {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
-            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+            using result_t = ::std::array<TypeOffsetInfo, NumImplementedFields>;
+            result_t r = {};
+            const result_t& const_r = r;
 
             uint32_t i = 0;
 
-            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
-            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
-            r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
-            r[i++] = {offsetof(class Type, d), sizeof(uint8_t)};
-            r[i++] = {offsetof(class Type, e), sizeof(StructA::Type)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, a), sizeof(Type::a)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, b), sizeof(Type::b)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, c), sizeof(Type::c)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, d), sizeof(uint8_t)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, e), sizeof(StructA::Type)};
 
             return r;
         }
@@ -117,7 +129,7 @@ namespace TestCluster {
         constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
         
         const StructDescriptor<NumImplementedFields> Descriptor = {
-            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
                 chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}),
                 chip::Span<const FieldDescriptor>({StructA::Descriptor.FieldList.data(), StructA::Descriptor.FieldList.size()}))
         };
@@ -127,26 +139,28 @@ namespace TestCluster {
 
     namespace Attributes {
         constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
-            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
+            using result_t = ::std::array<TypeOffsetInfo, NumImplementedFields>;
+            result_t r = {};
+            const result_t& const_r = r;
 
             uint32_t i = 0;
 
-            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
-            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, a), sizeof(Type::a)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, b), sizeof(Type::b)};
 
             if (IsImplemented(FieldC)) {
-                r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
+                const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, c), sizeof(Type::c)};
             }
 
             if (IsImplemented(FieldD)) {
-                r[i++] = {offsetof(class Type, d), sizeof(Type::d)};
+                const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, d), sizeof(Type::d)};
             }
 
             if (IsImplemented(FieldE)) {
-                r[i++] = {offsetof(class Type, e), sizeof(uint8_t)};
+                const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, e), sizeof(uint8_t)};
             }
 
-            r[i++] = {offsetof(class Type, f), sizeof(Type::f)};
+            const_cast<typename result_t::reference>(const_r[i++]) = {offsetof(class Type, f), sizeof(Type::f)};
 
             return r;
         }
@@ -154,7 +168,7 @@ namespace TestCluster {
         constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
 
         const StructDescriptor<NumImplementedFields> Descriptor = {
-            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
+            .FieldList = PopulateFieldDescriptors<NumImplementedFields, ArraySize(_Schema)>(_Schema, Offsets,
                 chip::Span<const FieldDescriptor>({StructB::Descriptor.FieldList.data(), StructB::Descriptor.FieldList.size()})
             )
         };
