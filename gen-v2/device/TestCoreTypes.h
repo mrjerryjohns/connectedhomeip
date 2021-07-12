@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <array>
 #include <SchemaTypes.h>
+#include <basic-types.h>
 
 namespace chip {
 namespace app {

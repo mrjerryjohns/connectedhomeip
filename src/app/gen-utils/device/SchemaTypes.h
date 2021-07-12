@@ -95,14 +95,6 @@ struct ClusterDescriptor {
     ClusterId_t ClusterId;
 };
 
-
-class IEncodable {
-public:
-    virtual CHIP_ERROR Encode(TLV::TLVWriter &writer, uint64_t tag) = 0;
-    virtual CHIP_ERROR Decode(TLV::TLVReader &reader) = 0;
-    virtual ~IEncodable() {}
-};
-
 CHIP_ERROR EncodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, uint64_t tag, TLV::TLVWriter &writer, bool inArray = false);
 CHIP_ERROR DecodeSchemaElement(chip::Span<const FieldDescriptor> pDescriptor, void *buf, TLV::TLVReader &reader, bool inArray = false);
 

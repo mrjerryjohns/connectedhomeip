@@ -43,11 +43,10 @@
 #include <transport/SecureSessionMgr.h>
 #include <transport/raw/UDP.h>
 #include <protocols/secure_channel/MessageCounterManager.h>
-#include <app/CommandDemuxer.h>
+#include <DemuxedInvokeInitiator.h>
 #include <nlunit-test.h>
 
 #include <TestCluster-Gen.h>
-#include <NetworkCommissioningCluster-Gen.h>
 
 using namespace std::placeholders;
 
@@ -75,7 +74,7 @@ public:
 };
 
 TestServerCluster::TestServerCluster()
-    : ClusterServer(&chip::app::Cluster::TestCluster::ClusterDescriptor)
+    : ClusterServer(chip::app::Cluster::TestCluster::kClusterId)
 {
 }
 

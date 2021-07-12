@@ -2,13 +2,14 @@
 
 #include <type_traits>
 #include <array>
-#include <SchemaTypes.h>
+#include <device/SchemaTypes.h>
+#include <basic-types.h>
 
 namespace chip {
 namespace app {
 namespace Cluster { 
 namespace NetworkCommissioningCluster {
-    constexpr ClusterId_t kClusterId = 0x0031;
+    constexpr chip::ClusterId kClusterId = 0x0031;
 
     enum CommandId {
         kScanNetworksRequestCommandId = 0,

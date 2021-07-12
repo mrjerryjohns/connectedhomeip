@@ -18,6 +18,7 @@
 
 #include "network-commissioning.h"
 #include "NetworkCommissioningCluster-Gen.h"
+#include "NetworkCommissioningCluster.h"
 #include "core/CHIPError.h"
 #include "protocols/secure_channel/Constants.h"
 
@@ -62,7 +63,7 @@ void DispatchServerCommand(app::Command * apCommandObj, CommandId aCommandId, En
 }
 
 NetworkCommissioningServer::NetworkCommissioningServer()
-    : ClusterServer(&NetworkCommissioningCluster::ClusterDescriptor)
+    : ClusterServer(NetworkCommissioningCluster::kClusterId)
 {
 }
 

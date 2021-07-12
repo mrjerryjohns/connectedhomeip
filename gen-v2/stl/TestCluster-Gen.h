@@ -5,14 +5,13 @@
 #include "TestCluster.h"
 #include <vector>
 #include <string>
+#include <basic-types.h>
+#include <IEncodableElement.h>
 
 namespace chip {
 namespace app {
 namespace Cluster { 
 namespace TestCluster {
-    extern ClusterDescriptor ClusterDescriptor;
-    constexpr ClusterId_t kClusterId = 0x000000001;
-
     namespace StructA {
         class Type : public IEncodable {
             public:
@@ -60,7 +59,7 @@ namespace TestCluster {
     namespace CommandA {
         class Type : public IEncodable {
             public:
-                static ClusterId_t GetClusterId() { return kClusterId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
                 static uint16_t GetCommandId() { return kCommandAId; }
 
                 uint8_t a;
@@ -76,7 +75,7 @@ namespace TestCluster {
     namespace CommandB {
         class Type : public IEncodable {
             public:
-                static uint16_t GetClusterId() { return kClusterId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
                 static uint16_t GetCommandId() { return kCommandBId; }
                 
                 struct empty {};
@@ -92,34 +91,6 @@ namespace TestCluster {
                 CHIP_ERROR Decode(TLV::TLVReader &reader) final;
         };
     }
-
-#if 0
-    namespace Attributes {
-        constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
-        extern const StructDescriptor<NumImplementedFields> Descriptor;
-        
-        class Type {
-            public:
-                struct empty {};
-
-                typedef typename std::conditional<IsImplemented(FieldC), uint32_t, empty>::type FieldCType;
-                typedef typename std::conditional<IsImplemented(FieldD), uint8_t, empty>::type FieldDType;
-
-                void SetA(uint8_t v) { a = v; }
-                void SetC(FieldCType v) { c = v; }
-
-            public:
-                uint8_t a;
-                uint8_t b;
-                FieldCType c;
-                FieldDType d;
-                chip::Span<uint8_t> e;
-                StructB::Type f;
-
-                static const StructDescriptor<NumImplementedFields> &mDescriptor;
-        };
-    }
-#endif
 }
 }
 }

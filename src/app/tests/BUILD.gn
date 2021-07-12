@@ -83,13 +83,14 @@ chip_test_suite("tests") {
 
   cflags = [ "-Wconversion" ]
 
-  public_configs = [
-    #"${chip_root}/gen-v2/device:includes"
-    "${chip_root}/gen-v2/stl:includes"
-  ]
+  # public_configs = [
+  #   #"${chip_root}/gen-v2/device:includes"
+  #   "${chip_root}/gen-v2/stl:includes"
+  # ]
 
   public_deps = [
     "${chip_root}/src/app",
+    "${chip_root}/src/app/gen-utils:gen-utils-stl",
     "${chip_root}/src/app/util:device_callbacks_manager",
     "${chip_root}/gen-v2/stl",
     "${chip_root}/src/lib/core",

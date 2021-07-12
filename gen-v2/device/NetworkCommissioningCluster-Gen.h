@@ -16,7 +16,7 @@ namespace NetworkCommissioningCluster {
         
         class Type {
             public:
-                ClusterId_t GetClusterId() { return kClusterId; }
+                chip::ClusterId GetClusterId() { return kClusterId; }
                 uint16_t GetCommandId() { return kAddThreadNetworkRequestCommandId; }
                 
                 chip::ByteSpan OperationalDataSet;

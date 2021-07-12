@@ -2,14 +2,14 @@
 
 #include <type_traits>
 #include <array>
-#include <SchemaTypes.h>
 #include <core/PeerId.h>
+#include <basic-types.h>
 
 namespace chip {
 namespace app {
 namespace Cluster {
 namespace OperationalCredentialCluster {
-    const ClusterId_t kClusterId = 0x003E;
+    const chip::ClusterId kClusterId = 0x003E;
 
     namespace OpCsrRequest {
         enum FieldID {

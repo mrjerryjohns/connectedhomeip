@@ -5,6 +5,8 @@
 #include "OperationalCredentialCluster.h"
 #include <vector>
 #include <string>
+#include <basic-types.h>
+#include <IEncodableElement.h>
 
 namespace chip {
 namespace app {
@@ -18,7 +20,7 @@ namespace OperationalCredentialCluster {
                 chip::NodeId caseAdminNode;
                 int16_t adminVendorId;
 
-                static ClusterId_t GetClusterId() { return kClusterId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
                 static uint16_t GetCommandId() { return 0x06; }
 
             public:
@@ -34,7 +36,7 @@ namespace OperationalCredentialCluster {
                 int64_t fabricIndex;
                 std::string debugText;
 
-                static ClusterId_t GetClusterId() { return kClusterId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
 
                 //
                 // TODO: This SHOULD be 0x08, but because the device side sends back a faulty status 
@@ -53,7 +55,7 @@ namespace OperationalCredentialCluster {
             public:
                 std::vector<uint8_t> csrNonce;
 
-                static ClusterId_t GetClusterId() { return kClusterId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
                 static uint16_t GetCommandId() { return 0x04; }
 
             public:
@@ -72,7 +74,7 @@ namespace OperationalCredentialCluster {
                 std::vector<uint8_t> vendorReserved3;
                 std::vector<uint8_t> signature;
 
-                static ClusterId_t GetClusterId() { return kClusterId; }
+                static chip::ClusterId GetClusterId() { return kClusterId; }
                 static uint16_t GetCommandId() { return 0x05; }
 
             public:

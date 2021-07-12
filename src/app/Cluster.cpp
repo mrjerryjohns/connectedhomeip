@@ -31,9 +31,9 @@
 namespace chip {
 namespace app {
 
-ClusterServer::ClusterServer(ClusterDescriptor *apClusterDescriptor)
+ClusterServer::ClusterServer(ClusterId clusterId)
 {
-    mClusterDescriptor = apClusterDescriptor;
+    mClusterId = clusterId;
 }
 
 }

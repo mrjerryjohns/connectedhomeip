@@ -2,12 +2,15 @@
 
 #include <type_traits>
 #include <array>
-#include <SchemaTypes.h>
+#include <device/SchemaTypes.h>
+#include <basic-types.h>
 
 namespace chip {
 namespace app {
 namespace Cluster { 
 namespace TestCluster {
+    constexpr chip::ClusterId kClusterId = 0x000000001;
+    
     enum CommandId {
         kCommandAId = 1,
         kCommandBId = 2

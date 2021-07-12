@@ -22,8 +22,10 @@ static_library("stl") {
   output_name = "libStlSchema"
 
   sources = [
-    "TestCluster.cpp",
     "OperationalCredentialCluster.cpp",
+    "OperationalCredentialCluster-Gen.h",
+    "OperationalCredentialCluster.h",
+    "TestCluster.cpp",
     "TestCluster.h",
     "TestCluster-Gen.h",
   ]

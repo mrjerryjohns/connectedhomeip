@@ -42,6 +42,7 @@ static_library("controller") {
   public_deps = [
     "${chip_root}/gen-v2/stl",
     "${chip_root}/src/app",
+    "${chip_root}/src/app/gen-utils:gen-utils-stl",
     "${chip_root}/src/app/util:device_callbacks_manager",
     "${chip_root}/src/lib/core",
     "${chip_root}/src/lib/mdns",

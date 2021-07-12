@@ -39,11 +39,9 @@
 #include <app/MessageDef/CommandDataElement.h>
 #include <app/MessageDef/CommandList.h>
 #include <app/MessageDef/InvokeCommand.h>
-#include "InvokeInteraction.h"
-#include "SchemaTypes.h"
-#include "basic-types.h"
-#include "messaging/ExchangeDelegate.h"
-#include "protocols/secure_channel/Constants.h"
+#include <InvokeInteraction.h>
+#include <basic-types.h>
+#include <protocols/secure_channel/Constants.h>
 #include <functional>
 #include <vector>
 
@@ -80,7 +78,7 @@ public :
     * Constructor that expects to be passed an onDoneFunc that will be called when the invoke has completed
     * and the object is safe for destruction.
     */
-   DemuxedInvokeInitiator(onDoneFuncDef onDoneFunc) { mOnDoneFunc = onDoneFunc; }
+   DemuxedInvokeInitiator(onDoneFuncDef onDoneFunc);
 
    /*
     * @brief
@@ -127,14 +125,7 @@ public :
     */
    CHIP_ERROR AddCommand(IEncodable *request, CommandParams params,
                   std::function<void (DemuxedInvokeInitiator& invokeInitiator, CommandParams&)> onDataFunc = {}, 
-                  std::function<void (DemuxedInvokeInitiator& invokeInitiator, CHIP_ERROR error, StatusResponse *response)> onErrorFunc = {}) {
-        auto onDataClosure = [onDataFunc](DemuxedInvokeInitiator& initiator, CommandParams &params, TLV::TLVReader *reader) {
-            onDataFunc(initiator, params);
-        };
-
-        mHandlers.push_back({onDataClosure, onErrorFunc, params.ClusterId, params.CommandId});
-        return mInitiator.AddRequest(params, request);
-   }
+                  std::function<void (DemuxedInvokeInitiator& invokeInitiator, CHIP_ERROR error, StatusResponse *response)> onErrorFunc = {});
 
    CHIP_ERROR Send() {
        return mInitiator.Send();
@@ -145,39 +136,16 @@ public :
    ~DemuxedInvokeInitiator() {}
 
 private:
-   void OnResponse(InvokeInitiator &initiator, CommandParams &params, TLV::TLVReader *payload) final {
-       bool foundMatch = false;
+   void OnResponse(InvokeInitiator &initiator, CommandParams &params, TLV::TLVReader *payload) final;
 
-       for (auto iter : mHandlers) {
-           if (iter.clusterId == params.ClusterId && iter.commandId == params.CommandId) {
-               iter.onDataClosure(*this, params, payload);
-               return;
-           }
-       }
+   void OnError(InvokeInitiator &initiator, CommandParams *params, CHIP_ERROR error, StatusResponse *statusResponse) final;
 
-       if (!foundMatch) {
-           ChipLogProgress(DataManagement, "Could not find a matching demuxed handler for command! (ClusterId = %04x, Endpoint = %lu, Command = %lu)", 
-                           params.ClusterId, (unsigned long)params.EndpointId, (unsigned long)params.CommandId);
-       }           
-   }
-
-   void OnError(InvokeInitiator &initiator, CommandParams *params, CHIP_ERROR error, StatusResponse *statusResponse) final {
-       for (auto iter : mHandlers) {
-           if ((params && (iter.clusterId == params->ClusterId && iter.commandId == params->CommandId)) || (!params)) {
-               iter.onErrorFunc(*this, error, statusResponse);
-               return;
-           }
-       }
-   }
-
-   void OnEnd(InvokeInitiator &initiator) final {
-        mOnDoneFunc(*this);
-   }
+   void OnEnd(InvokeInitiator &initiator) final;
 
    struct Handler {
        std::function<void (DemuxedInvokeInitiator& invokeInitiator, CommandParams &params, TLV::TLVReader *reader)> onDataClosure; 
        std::function<void (DemuxedInvokeInitiator& invokeInitiator, CHIP_ERROR error, StatusResponse *response)> onErrorFunc;
-       ClusterId_t clusterId;
+       chip::ClusterId clusterId;
        chip::CommandId commandId;
    };
 

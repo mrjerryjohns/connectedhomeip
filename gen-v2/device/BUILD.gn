@@ -34,7 +34,8 @@ static_library("device") {
   public_deps = [
     "${chip_root}/src/lib/core",
     "${chip_root}/src/lib/support",
-    "${chip_root}/src/app"
+    "${chip_root}/src/app",
+    "${chip_root}/src/app/gen-utils:gen-utils-device"
   ]
 
   public_configs = [

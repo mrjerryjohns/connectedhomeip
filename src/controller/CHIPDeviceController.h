@@ -48,7 +48,7 @@
 #include <transport/SecureSessionMgr.h>
 #include <transport/TransportMgr.h>
 #include <transport/raw/UDP.h>
-#include <app/CommandDemuxer.h>
+#include <DemuxedInvokeInitiator.h>
 #include <OperationalCredentialCluster-Gen.h>
 
 #if CONFIG_DEVICE_LAYER

@@ -6,10 +6,6 @@ namespace chip {
 namespace app {
 namespace Cluster { 
 namespace TestCluster {
-    struct ClusterDescriptor ClusterDescriptor = {
-        .ClusterId = kClusterId
-    };
-
     namespace StructA {
         CHIP_ERROR Type::Encode(TLV::TLVWriter &writer, uint64_t tag) {
             TLV::TLVType outer;
@@ -278,45 +274,6 @@ namespace TestCluster {
             return CHIP_NO_ERROR;
         }
     }
-
-#if 0
-    namespace Attributes {
-        constexpr std::array<TypeOffsetInfo,NumImplementedFields> InitializeOffsets() {
-            std::array<TypeOffsetInfo,NumImplementedFields> r = {};
-
-            uint32_t i = 0;
-
-            r[i++] = {offsetof(class Type, a), sizeof(Type::a)};
-            r[i++] = {offsetof(class Type, b), sizeof(Type::b)};
-
-            if (IsImplemented(FieldC)) {
-                r[i++] = {offsetof(class Type, c), sizeof(Type::c)};
-            }
-
-            if (IsImplemented(FieldD)) {
-                r[i++] = {offsetof(class Type, d), sizeof(Type::d)};
-            }
-
-            if (IsImplemented(FieldE)) {
-                r[i++] = {offsetof(class Type, e), sizeof(uint8_t)};
-            }
-
-            r[i++] = {offsetof(class Type, f), sizeof(Type::f)};
-
-            return r;
-        }
-        
-        constexpr std::array<TypeOffsetInfo, NumImplementedFields> Offsets = InitializeOffsets();
-
-        const StructDescriptor<NumImplementedFields> Descriptor = {
-            .FieldList = PopulateFieldDescriptors<NumImplementedFields, std::size(_Schema)>(_Schema, Offsets,
-                chip::Span<const FieldDescriptor>({StructB::Descriptor.FieldList.data(), StructB::Descriptor.FieldList.size()})
-            )
-        };
-
-        const StructDescriptor<NumImplementedFields>& Type::mDescriptor = Descriptor;
-    }
-#endif
 }
 }
 }

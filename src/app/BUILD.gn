@@ -28,12 +28,6 @@ buildconfig_header("app_buildconfig") {
   header = "AppBuildConfig.h"
   header_dir = "app"
 
-  # include_dirs = [
-  #   "util",
-  #   ".",
-  #   "${target_gen_dir}/include",
-  # ]
-    
   defines = [ "CHIP_CONFIG_IM_ENABLE_SCHEMA_CHECK=${chip_enable_schema_check}" ]
 }
 
@@ -113,8 +107,6 @@ static_library("app") {
     "reporting/Engine.h",
     "InvokeInteraction.cpp",
     "InvokeInteraction.h",
-    "SchemaUtils.cpp",
-    "SchemaTypes.h",
     "Cluster.cpp",
     "Cluster.h"
   ]

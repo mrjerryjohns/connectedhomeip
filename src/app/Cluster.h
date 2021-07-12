@@ -46,19 +46,28 @@
 namespace chip {
 namespace app {
 
+/*
+ * @brief
+ *
+ * Defines a base class that each cluster's implementation on the server is expected to extend to be
+ * deemed a valid, registered cluster instance on an endpoint.
+ *
+ * The virtual methods defined in this class revolve around command handling as well as attribute data gets and sets.
+ *
+ */
 class ClusterServer : public InvokeResponder::CommandHandler
 {
 public:
-    ClusterServer(ClusterDescriptor *apClusterDescriptor);
+    ClusterServer(chip::ClusterId clusterId);
     virtual ~ClusterServer() = default;
 
     void SetEndpoint(chip::EndpointId aEndpointId) { mEndpoint = aEndpointId; }
 
-    ClusterId_t GetClusterId() { return mClusterDescriptor->ClusterId; }
+    chip::ClusterId GetClusterId() { return mClusterId; }
     chip::EndpointId GetEndpoint() { return mEndpoint; }
 
 private:
-    ClusterDescriptor *mClusterDescriptor;
+    chip::ClusterId mClusterId;
     chip::EndpointId mEndpoint = 0;
 };
 

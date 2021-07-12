@@ -7,10 +7,6 @@ namespace chip {
 namespace app {
 namespace Cluster { 
 namespace OperationalCredentialCluster {
-    struct ClusterDescriptor ClusterDescriptor = {
-        .ClusterId = kClusterId
-    };
-
     namespace AddOpCert {
         CHIP_ERROR Type::Encode(TLV::TLVWriter &writer, uint64_t tag) {
             TLV::TLVType outer;

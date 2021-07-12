@@ -9,7 +9,6 @@ namespace app {
 namespace Cluster { 
 namespace TestCluster {
     extern ClusterDescriptor ClusterDescriptor;
-    constexpr ClusterId_t kClusterId = 0x000000001;
 
     namespace StructA {
         constexpr int NumImplementedFields = GetNumImplementedFields(_Schema);
